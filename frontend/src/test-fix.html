@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Exam Flow Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #0a0c10; color: #fff; }
+        .test-box { background: #111318; border: 1px solid #1e2330; padding: 20px; margin: 10px 0; border-radius: 10px; }
+        .pass { color: #10b981; }
+        .fail { color: #ef4444; }
+        .pending { color: #f59e0b; }
+        button { background: #0d9488; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0f766e; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Exam Navigation Fix Test</h1>
+    <p>This tests whether the backend fixes are working.</p>
+    
+    <div class="test-box">
+        <h2>Test 1: Session Initialization (Simulating Rules → Monitoring)</h2>
+        <button onclick="testSessionInit()">Run Test</button>
+        <div id="test1-result"></div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 2: Complete Flow (Init → Start)</h2>
+        <button onclick="testCompleteFlow()">Run Test</button>
+        <div id="test2-result"></div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 3: CORS Check (Port 3000 → Port 5000)</h2>
+        <button onclick="testCORS()">Run Test</button>
+        <div id="test3-result"></div>
+    </div>
+
+    <script>
+        // Get token from browser localStorage (logged-in user)
+        function getToken() {
+            return localStorage.getItem('auth_token');
+        }
+
+        async function testSessionInit() {
+            const token = getToken();
+            if (!token) {
+                document.getElementById('test1-result').innerHTML = '<p class="fail">❌ No auth token found. Please login first.</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/sessions/initialize', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ examId: 'exam-001' })
+                });
+
+                if (response.status === 201) {
+                    const data = await response.json();
+                    document.getElementById('test1-result').innerHTML = `
+                        <p class="pass">✅ SUCCESS - Status 201</p>
+                        <p>Message: ${data.message}</p>
+                        <p>Session ID: ${data.session._id}</p>
+                    `;
+                } else {
+                    document.getElementById('test1-result').innerHTML = `<p class="fail">❌ FAILED - Status ${response.status}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('test1-result').innerHTML = `<p class="fail">❌ ERROR: ${error.message}</p>`;
+            }
+        }
+
+        async function testCompleteFlow() {
+            const token = getToken();
+            if (!token) {
+                document.getElementById('test2-result').innerHTML = '<p class="fail">❌ No auth token found. Please login first.</p>';
+                return;
+            }
+
+            try {
+                // Step 1: Initialize
+                const initRes = await fetch('http://localhost:5000/api/sessions/initialize', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ examId: 'exam-001' })
+                });
+
+                if (initRes.status !== 201) {
+                    document.getElementById('test2-result').innerHTML = `<p class="fail">❌ Init failed - Status ${initRes.status}</p>`;
+                    return;
+                }
+
+                const initData = await initRes.json();
+                const sessionId = initData.session._id;
+
+                // Step 2: Start
+                const startRes = await fetch(`http://localhost:5000/api/sessions/${sessionId}/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: '{}'
+                });
+
+                if (startRes.status === 200) {
+                    document.getElementById('test2-result').innerHTML = `
+                        <p class="pass">✅ COMPLETE SUCCESS</p>
+                        <p>Step 1 (Init): 201 ✅</p>
+                        <p>Step 2 (Start): 200 ✅</p>
+                        <p>Session: ${sessionId}</p>
+                        <p><strong>You can now click "Start Exam Now" and go to exam page!</strong></p>
+                    `;
+                } else {
+                    document.getElementById('test2-result').innerHTML = `<p class="fail">❌ Start failed - Status ${startRes.status}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('test2-result').innerHTML = `<p class="fail">❌ ERROR: ${error.message}</p>`;
+            }
+        }
+
+        async function testCORS() {
+            try {
+                const token = getToken() || 'test-token';
+                const response = await fetch('http://localhost:5000/api/health');
+                const corsHeader = response.headers.get('access-control-allow-origin');
+                
+                if (corsHeader === 'http://localhost:3000' || corsHeader === '*') {
+                    document.getElementById('test3-result').innerHTML = `
+                        <p class="pass">✅ CORS WORKING</p>
+                        <p>Access-Control-Allow-Origin: ${corsHeader}</p>
+                    `;
+                } else {
+                    document.getElementById('test3-result').innerHTML = `<p class="fail">❌ CORS NOT ALLOWING PORT 3000</p>`;
+                }
+            } catch (error) {
+                document.getElementById('test3-result').innerHTML = `<p class="fail">❌ ERROR: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

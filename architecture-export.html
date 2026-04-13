@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Webcam Proctoring Architecture Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1e1e1e;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 100%;
+            background: #2d2d2d;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+            color: #4CAF50;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .diagram {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow: auto;
+        }
+        
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button.secondary {
+            background: #2196F3;
+        }
+        
+        button.secondary:hover {
+            background: #0b7dda;
+        }
+        
+        .instructions {
+            background: #3d3d3d;
+            border-left: 4px solid #4CAF50;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .instructions h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+            margin-left: 20px;
+        }
+        
+        .exports {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .export-btn {
+            padding: 15px;
+            background: #3d3d3d;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .export-btn:hover {
+            background: #4CAF50;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #888;
+            border-top: 1px solid #444;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 AI Webcam Proctoring Architecture</h1>
+        <p class="subtitle">Complete System Flow Diagram - Right-click to Save as Image</p>
+        
+        <div class="controls">
+            <button class="secondary" onclick="downloadSVG()">📥 Download SVG</button>
+            <button onclick="copyToClipboard()">📋 Copy Diagram Code</button>
+        </div>
+        
+        <div class="diagram">
+            <div class="mermaid">
+graph TD
+    A["Video Stream<br/>640x480 @ 30fps"] -->|Every 500ms| B["MediaPipe<br/>Face Landmarker"]
+    
+    B -->|478 Points| C["Extract Facial Landmarks"]
+    
+    C -->|Nose, Eyes, Chin| D["Gaze Direction<br/>Calculator"]
+    C -->|Head Position| E["Head Angle<br/>Analyzer"]
+    C -->|Face Count| F["Multiple Faces<br/>Detector"]
+    
+    D -->|Left/Right/Center| D1["Gaze Deviation Event<br/>Weight: +8 pts"]
+    E -->|Pitch/Yaw/Roll| E1["Head Angle Event<br/>Weight: +12 pts"]
+    F -->|2+ Faces| F1["Multiple Faces Event<br/>Weight: +25 pts<br/>🚨 CRITICAL"]
+    
+    A -->|Every 1 sec| G["Canvas Analyzer"]
+    A -->|Every 1-2 sec| H["Phone Detector"]
+    
+    G -->|Mouth Region| G1["Luminance Variance Test"]
+    G1 -->|Movement >30| G2["Lip Movement Event<br/>Weight: +8 pts"]
+    
+    H -->|Bright/Dark Pixels| H1["Color Pattern Analysis"]
+    H1 -->|>25% Match| H2["Phone Detected Event<br/>Weight: +30 pts<br/>🚨 CRITICAL"]
+    
+    D1 --> Q["Event Queue"]
+    E1 --> Q
+    F1 --> Q
+    G2 --> Q
+    H2 --> Q
+    
+    Q --> R["Risk Scoring<br/>30-min Rolling Window"]
+    
+    R --> S["Calculate Score<br/>Sum of weights<br/>Apply multipliers"]
+    
+    S -->|0-35 pts| T1["🟢 LOW RISK"]
+    S -->|35-65 pts| T2["🟡 MEDIUM RISK"]
+    S -->|65-85 pts| T3["🔴 HIGH RISK"]
+    S -->|85-100 pts| T4["🚨 CRITICAL RISK"]
+    
+    T1 --> U["Dashboard Update"]
+    T2 --> U
+    T3 --> U
+    T4 --> V["Auto-Flag<br/>for Review"]
+    
+    U --> W["Real-time Display:<br/>• Risk Score<br/>• Gaze Direction<br/>• Face Count<br/>• Events Timeline"]
+    
+    V --> X["Video Evidence<br/>+ Snapshots<br/>+ Decision Panel"]
+    
+    style B fill:#4CAF50,stroke:#2E7D32,color:#fff
+    style F1 fill:#FF5252,stroke:#C62828,color:#fff
+    style H2 fill:#FF5252,stroke:#C62828,color:#fff
+    style T4 fill:#FF5252,stroke:#C62828,color:#fff
+    style V fill:#FF5252,stroke:#C62828,color:#fff
+    style W fill:#FFA726,stroke:#E65100,color:#fff
+    style X fill:#FFA726,stroke:#E65100,color:#fff
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>📌 How to Export as PNG/JPG:</h3>
+            <ol>
+                <li><strong>Option 1 (Fastest):</strong> Right-click on diagram → "Save image as..." → Choose PNG or convert to JPG</li>
+                <li><strong>Option 2:</strong> Take screenshot (Snipping Tool) → Save as PNG/JPG</li>
+                <li><strong>Option 3:</strong> Click "Download SVG" button → Use online converter (cloudconvert.com) to convert SVG → PNG/JPG</li>
+                <li><strong>Option 4:</strong> Use ImageMagick: <code>convert diagram.svg diagram.png</code></li>
+            </ol>
+        </div>
+        
+        <div class="exports">
+            <div class="export-btn" onclick="alert('Right-click on diagram and select Save image as PNG')">
+                📸 Export as PNG<br/>(Right-click method)
+            </div>
+            <div class="export-btn" onclick="alert('Right-click on diagram and select Save image as JPG')">
+                📸 Export as JPG<br/>(Right-click method)
+            </div>
+            <div class="export-btn" onclick="screenshotDiagram()">
+                🖼️ Screenshot<br/>(Clipboard)
+            </div>
+        </div>
+        
+        <div class="footer">
+            💾 Pro Tip: Use Chrome DevTools (F12) → Right-click diagram → Inspect → Copy element as image
+            <br/>
+            🔗 Or use online tool: <a href="https://kroki.io" style="color: #4CAF50;" target="_blank">kroki.io</a> (supports SVG → PNG/JPG conversion)
+        </div>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+        mermaid.contentLoaded();
+        
+        function downloadSVG() {
+            const svg = document.querySelector('.mermaid svg');
+            if (!svg) {
+                alert('Diagram not rendered yet. Please wait a moment and try again.');
+                return;
+            }
+            
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = 'AI_Webcam_Architecture.png';
+                link.click();
+            };
+            
+            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        }
+        
+        function screenshotDiagram() {
+            const diagram = document.querySelector('.mermaid');
+            alert('Screenshot functionality:\n\n1. Use Windows Snipping Tool (Win+Shift+S)\n2. Draw around the diagram\n3. Save as PNG or JPG\n\nOr: Right-click diagram → Copy image → Paste in Paint → Save');
+        }
+        
+        function copyToClipboard() {
+            const code = `graph TD
+    A["Video Stream<br/>640x480 @ 30fps"] -->|Every 500ms| B["MediaPipe<br/>Face Landmarker"]
+    B -->|478 Points| C["Extract Facial Landmarks"]
+    C -->|Nose, Eyes, Chin| D["Gaze Direction<br/>Calculator"]
+    C -->|Head Position| E["Head Angle<br/>Analyzer"]
+    C -->|Face Count| F["Multiple Faces<br/>Detector"]
+    D -->|Left/Right/Center| D1["Gaze Deviation Event<br/>Weight: +8 pts"]
+    E -->|Pitch/Yaw/Roll| E1["Head Angle Event<br/>Weight: +12 pts"]
+    F -->|2+ Faces| F1["Multiple Faces Event<br/>Weight: +25 pts<br/>🚨 CRITICAL"]`;
+            
+            navigator.clipboard.writeText(code);
+            alert('✅ Mermaid code copied to clipboard!\n\nYou can paste it into:\n• mermaid.live\n• GitHub Markdown\n• Any Mermaid renderer');
+        }
+    </script>
+</body>
+</html>
