@@ -32,6 +32,15 @@ export default function AdminExamsPage() {
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [editingExamMetadata, setEditingExamMetadata] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
+  const [createFormData, setCreateFormData] = useState({
+    title: '',
+    courseCode: '',
+    date: '',
+    duration: 60,
+    startTime: '',
+    endTime: '',
+    description: '',
+  });
 
   // Fetch exams from API
   useEffect(() => {
@@ -107,6 +116,53 @@ export default function AdminExamsPage() {
       handleReloadExams();
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Failed to update exam';
+      alert(`Error: ${errorMsg}`);
+    }
+  };
+
+  const handleCreateExam = async () => {
+    if (!createFormData.title || !createFormData.title.trim()) {
+      alert('Please enter exam title');
+      return;
+    }
+    if (!createFormData.courseCode || !createFormData.courseCode.trim()) {
+      alert('Please enter course code');
+      return;
+    }
+    if (!createFormData.duration || createFormData.duration < 1) {
+      alert('Please enter valid duration');
+      return;
+    }
+
+    try {
+      const payload = {
+        title: createFormData.title.trim(),
+        courseCode: createFormData.courseCode.trim(),
+        date: createFormData.date,
+        duration: parseInt(String(createFormData.duration), 10),
+        startTime: createFormData.startTime,
+        endTime: createFormData.endTime,
+        description: createFormData.description.trim(),
+        totalQuestions: 0,
+        totalMarks: 100,
+        passingMarks: 40,
+      };
+
+      await examAPI.createExam(payload);
+      alert('Exam created successfully! You can now add questions to it.');
+      setShowCreate(false);
+      setCreateFormData({
+        title: '',
+        courseCode: '',
+        date: '',
+        duration: 60,
+        startTime: '',
+        endTime: '',
+        description: '',
+      });
+      handleReloadExams();
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to create exam';
       alert(`Error: ${errorMsg}`);
     }
   };
@@ -324,49 +380,85 @@ export default function AdminExamsPage() {
             </div>
             <div className="p-6 space-y-5">
               <div className="grid md:grid-cols-2 gap-4">
-                {EXAM_FORM_FIELDS.map(field => (
-                  <div key={field.id}>
-                    <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">{field.label}</label>
-                    <input
-                      type={field.type}
-                      placeholder={field.placeholder}
-                      className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
-                    />
-                  </div>
-                ))}
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Exam Title *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Advanced Algorithms Final"
+                    value={createFormData.title}
+                    onChange={(e) => setCreateFormData({ ...createFormData, title: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Course Code *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., CS401"
+                    value={createFormData.courseCode}
+                    onChange={(e) => setCreateFormData({ ...createFormData, courseCode: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Exam Date</label>
+                  <input
+                    type="date"
+                    value={createFormData.date}
+                    onChange={(e) => setCreateFormData({ ...createFormData, date: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Duration (minutes) *</label>
+                  <input
+                    type="number"
+                    placeholder="120"
+                    value={createFormData.duration}
+                    min="1"
+                    onChange={(e) => setCreateFormData({ ...createFormData, duration: parseInt(e.target.value) || 60 })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Start Time</label>
+                  <input
+                    type="time"
+                    value={createFormData.startTime}
+                    onChange={(e) => setCreateFormData({ ...createFormData, startTime: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">End Time</label>
+                  <input
+                    type="time"
+                    value={createFormData.endTime}
+                    onChange={(e) => setCreateFormData({ ...createFormData, endTime: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Description</label>
                 <textarea
                   rows={3}
-                  placeholder="Exam description..."
+                  placeholder="Exam description (optional)..."
+                  value={createFormData.description}
+                  onChange={(e) => setCreateFormData({ ...createFormData, description: e.target.value })}
                   maxLength={500}
                   className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50 resize-none"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Assign Students</label>
-                <div className="bg-[#0a0c10] border border-[#2d3139] rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-sm text-[#6b7280]">
-                    <i className="ri-team-line" />
-                    <span>10 students available · Click to assign</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-teal-500/5 border border-teal-500/15 rounded-lg">
-                <div className="w-10 h-5 bg-teal-500 rounded-full cursor-pointer relative flex-shrink-0">
-                  <div className="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full" />
-                </div>
-                <span className="text-sm text-[#9ca3af]">Send email invitations with secure exam links</span>
-              </div>
+              <p className="text-xs text-[#6b7280]">Fields marked with * are required</p>
             </div>
             <div className="flex items-center gap-3 px-6 py-4 border-t border-[#1e2330]">
               <button onClick={() => setShowCreate(false)} className="text-[#6b7280] hover:text-white text-sm cursor-pointer whitespace-nowrap">Cancel</button>
               <button
-                onClick={() => setShowCreate(false)}
+                onClick={handleCreateExam}
                 className="ml-auto bg-teal-500 hover:bg-teal-400 text-white font-semibold px-5 py-2.5 rounded-lg text-sm cursor-pointer whitespace-nowrap transition-colors"
               >
-                <i className="ri-mail-send-line mr-1.5" />Create &amp; Send Invitations
+                <i className="ri-add-line mr-1.5" />Create Exam
               </button>
             </div>
           </div>
