@@ -5,6 +5,24 @@ import { getDemoToken } from '../../../utils/examToken';
 import ExamEditor from './components/ExamEditor';
 import { examAPI } from '../../../services/api';
 
+// Static form fields configuration
+const EXAM_FORM_FIELDS = [
+  { id: 'title', label: 'Exam Title', placeholder: 'e.g., Advanced Algorithms Final', type: 'text' },
+  { id: 'code', label: 'Course Code', placeholder: 'e.g., CS401', type: 'text' },
+  { id: 'date', label: 'Exam Date', placeholder: '', type: 'date' },
+  { id: 'duration', label: 'Duration (minutes)', placeholder: '120', type: 'number' },
+  { id: 'start', label: 'Start Time', placeholder: '', type: 'time' },
+  { id: 'end', label: 'End Time', placeholder: '', type: 'time' },
+];
+
+// Static exam details items
+const EXAM_DETAIL_ITEMS = [
+  { id: 'date', icon: 'ri-calendar-line', getVal: (exam) => exam.date },
+  { id: 'time', icon: 'ri-time-line', getVal: (exam) => `${exam.startTime} – ${exam.endTime}` },
+  { id: 'students', icon: 'ri-team-line', getVal: (exam) => `${exam.totalStudents} students` },
+  { id: 'duration', icon: 'ri-timer-line', getVal: (exam) => `${exam.duration} min` },
+];
+
 export default function AdminExamsPage() {
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,15 +113,10 @@ export default function AdminExamsPage() {
             </div>
             <p className="text-[#6b7280] text-xs mb-4 leading-relaxed line-clamp-2">{exam.description}</p>
             <div className="grid grid-cols-2 gap-2 mb-4">
-              {[
-                { icon: 'ri-calendar-line', val: exam.date },
-                { icon: 'ri-time-line', val: `${exam.startTime} – ${exam.endTime}` },
-                { icon: 'ri-team-line', val: `${exam.totalStudents} students` },
-                { icon: 'ri-timer-line', val: `${exam.duration} min` },
-              ].map((item) => (
-                <div key={item.icon} className="flex items-center gap-1.5 text-xs text-[#9ca3af]">
+              {EXAM_DETAIL_ITEMS.map((item) => (
+                <div key={item.id} className="flex items-center gap-1.5 text-xs text-[#9ca3af]">
                   <i className={`${item.icon} text-[#4b5563] flex-shrink-0`} />
-                  <span className="truncate">{item.val}</span>
+                  <span className="truncate">{item.getVal(exam)}</span>
                 </div>
               ))}
             </div>
@@ -172,15 +185,8 @@ export default function AdminExamsPage() {
             </div>
             <div className="p-6 space-y-5">
               <div className="grid md:grid-cols-2 gap-4">
-                {[
-                  { label: 'Exam Title', placeholder: 'e.g., Advanced Algorithms Final', type: 'text' },
-                  { label: 'Course Code', placeholder: 'e.g., CS401', type: 'text' },
-                  { label: 'Exam Date', placeholder: '', type: 'date' },
-                  { label: 'Duration (minutes)', placeholder: '120', type: 'number' },
-                  { label: 'Start Time', placeholder: '', type: 'time' },
-                  { label: 'End Time', placeholder: '', type: 'time' },
-                ].map(field => (
-                  <div key={field.label}>
+                {EXAM_FORM_FIELDS.map(field => (
+                  <div key={field.id}>
                     <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">{field.label}</label>
                     <input
                       type={field.type}
