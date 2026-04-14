@@ -38,6 +38,9 @@ def detect_phone_in_base64(image_base64: str) -> dict:
             "boxes": [{"x": int, "y": int, "width": int, "height": int, "confidence": float}]
         }
     """
+    # Minimum confidence threshold to avoid false positives
+    PHONE_CONFIDENCE_THRESHOLD = 60
+    
     try:
         # Decode base64 image
         image_data = base64.b64decode(image_base64)
@@ -59,8 +62,8 @@ def detect_phone_in_base64(image_base64: str) -> dict:
                 label = model.names[cls]
                 confidence = float(box.conf[0]) * 100  # Convert to 0-100
                 
-                # Check if detected object is a cell phone
-                if "cell phone" in label.lower() or "phone" in label.lower():
+                # Check if detected object is a cell phone AND meets confidence threshold
+                if ("cell phone" in label.lower() or "phone" in label.lower()) and confidence >= PHONE_CONFIDENCE_THRESHOLD:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     width = x2 - x1
                     height = y2 - y1
@@ -99,6 +102,9 @@ def process_frame_file(image_path: str) -> dict:
     Returns:
         Detection result dict
     """
+    # Minimum confidence threshold to avoid false positives
+    PHONE_CONFIDENCE_THRESHOLD = 75
+    
     try:
         frame = cv2.imread(image_path)
         
@@ -116,7 +122,7 @@ def process_frame_file(image_path: str) -> dict:
                 label = model.names[cls]
                 confidence = float(box.conf[0]) * 100
                 
-                if "cell phone" in label.lower() or "phone" in label.lower():
+                if ("cell phone" in label.lower() or "phone" in label.lower()) and confidence >= PHONE_CONFIDENCE_THRESHOLD:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     width = x2 - x1
                     height = y2 - y1

@@ -250,8 +250,12 @@ export const monitoringService = {
       };
     }
 
-    // Phone detected = auto-flag
-    if (session.events.some(e => e.type === 'phone_detected')) {
+    // Phone detected = auto-flag (only if confidence >= 65%)
+    const PHONE_CONFIDENCE_THRESHOLD = 65;
+    const phoneEvents = session.events.filter(
+      e => e.type === 'phone_detected' && e.confidence >= PHONE_CONFIDENCE_THRESHOLD
+    );
+    if (phoneEvents.length > 0) {
       return { flag: true, reason: 'Phone device detected' };
     }
 

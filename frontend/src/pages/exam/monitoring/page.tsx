@@ -512,8 +512,11 @@ export default function ExamMonitoringPage() {
       criticalViolations.push('face_swap_suspected');
     }
     
-    // 2. Check for phone detection
-    const phoneDetected = enhancedMonitoring.events?.some(ev => ev.type === 'phone_detected');
+    // 2. Check for phone detection (only 65%+ confidence)
+    const PHONE_CONFIDENCE_THRESHOLD = 65;
+    const phoneDetected = enhancedMonitoring.events?.some(
+      ev => ev.type === 'phone_detected' && ev.confidence >= PHONE_CONFIDENCE_THRESHOLD
+    );
     if (phoneDetected) {
       criticalViolations.push('phone_detected');
     }
