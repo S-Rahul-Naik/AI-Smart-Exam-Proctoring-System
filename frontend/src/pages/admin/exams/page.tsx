@@ -30,6 +30,8 @@ export default function AdminExamsPage() {
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
+  const [editingExamMetadata, setEditingExamMetadata] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState<any>({});
 
   // Fetch exams from API
   useEffect(() => {
@@ -68,6 +70,44 @@ export default function AdminExamsPage() {
       setExams(response.data.exams || []);
     } catch (error) {
       console.error('Failed to reload exams:', error);
+    }
+  };
+
+  const handleEditExamMetadata = (exam: any) => {
+    setEditingExamMetadata(exam);
+    setEditFormData({
+      title: exam.title || '',
+      courseCode: exam.courseCode || '',
+      date: exam.date || '',
+      startTime: exam.startTime || '',
+      endTime: exam.endTime || '',
+      duration: exam.duration || 60,
+      description: exam.description || '',
+    });
+  };
+
+  const handleSaveExamMetadata = async () => {
+    if (!editFormData.title || !editFormData.title.trim()) {
+      alert('Please enter exam title');
+      return;
+    }
+    if (!editFormData.courseCode || !editFormData.courseCode.trim()) {
+      alert('Please enter course code');
+      return;
+    }
+    if (!editFormData.duration || editFormData.duration < 1) {
+      alert('Please enter valid duration');
+      return;
+    }
+
+    try {
+      await examAPI.updateExam(editingExamMetadata._id, editFormData);
+      alert('Exam updated successfully');
+      setEditingExamMetadata(null);
+      handleReloadExams();
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to update exam';
+      alert(`Error: ${errorMsg}`);
     }
   };
 
@@ -155,7 +195,10 @@ export default function AdminExamsPage() {
               >
                 <i className="ri-list-check-3 mr-1" />Questions
               </button>
-              <button className="w-8 h-8 flex items-center justify-center bg-[#1a1d24] border border-[#2d3139] rounded-lg text-[#4b5563] hover:text-white cursor-pointer transition-colors">
+              <button 
+                onClick={() => handleEditExamMetadata(exam)}
+                className="w-8 h-8 flex items-center justify-center bg-[#1a1d24] border border-[#2d3139] rounded-lg text-[#4b5563] hover:text-white cursor-pointer transition-colors"
+              >
                 <i className="ri-edit-line text-xs" />
               </button>
             </div>
@@ -171,6 +214,102 @@ export default function AdminExamsPage() {
           onClose={() => setEditingExamId(null)}
           onSave={handleReloadExams}
         />
+      )}
+
+      {/* Edit Exam Metadata Modal */}
+      {editingExamMetadata && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-[#111318] border border-[#1e2330] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-[#1e2330]">
+              <h2 className="text-white font-bold text-lg">Edit Exam Details</h2>
+              <button onClick={() => setEditingExamMetadata(null)} className="text-[#4b5563] hover:text-white cursor-pointer">
+                <i className="ri-close-line text-xl" />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Exam Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Advanced Algorithms Final"
+                    value={editFormData.title}
+                    onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Course Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., CS401"
+                    value={editFormData.courseCode}
+                    onChange={(e) => setEditFormData({ ...editFormData, courseCode: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Exam Date</label>
+                  <input
+                    type="date"
+                    value={editFormData.date}
+                    onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Duration (minutes)</label>
+                  <input
+                    type="number"
+                    placeholder="120"
+                    value={editFormData.duration}
+                    min="1"
+                    onChange={(e) => setEditFormData({ ...editFormData, duration: parseInt(e.target.value) || 60 })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Start Time</label>
+                  <input
+                    type="time"
+                    value={editFormData.startTime}
+                    onChange={(e) => setEditFormData({ ...editFormData, startTime: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">End Time</label>
+                  <input
+                    type="time"
+                    value={editFormData.endTime}
+                    onChange={(e) => setEditFormData({ ...editFormData, endTime: e.target.value })}
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Description</label>
+                <textarea
+                  rows={3}
+                  placeholder="Exam description..."
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  maxLength={500}
+                  className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 px-6 py-4 border-t border-[#1e2330]">
+              <button onClick={() => setEditingExamMetadata(null)} className="text-[#6b7280] hover:text-white text-sm cursor-pointer whitespace-nowrap">Cancel</button>
+              <button
+                onClick={handleSaveExamMetadata}
+                className="ml-auto bg-teal-500 hover:bg-teal-400 text-white font-semibold px-5 py-2.5 rounded-lg text-sm cursor-pointer whitespace-nowrap transition-colors"
+              >
+                <i className="ri-check-line mr-1.5" />Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Create Exam Modal */}
