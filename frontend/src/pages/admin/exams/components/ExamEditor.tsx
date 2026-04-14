@@ -289,8 +289,54 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
     type: 'mcq',
     marks: 1,
     difficulty: 'medium',
-    options: [{ id: '1', text: '', isCorrect: false }],
+    options: [
+      { id: '1', text: '', isCorrect: false },
+      { id: '2', text: '', isCorrect: false },
+    ],
   });
+
+  const [numOptions, setNumOptions] = useState(
+    question?.options?.length || 2
+  );
+
+  // Update number of options for MCQ
+  const updateNumOptions = (newNum: number) => {
+    if (newNum < 2) newNum = 2;
+    if (newNum > 10) newNum = 10;
+    
+    setNumOptions(newNum);
+    
+    const currentOptions = formData.options || [];
+    let updatedOptions = [...currentOptions];
+    
+    if (newNum > updatedOptions.length) {
+      // Add new options
+      for (let i = updatedOptions.length; i < newNum; i++) {
+        updatedOptions.push({ id: String(i + 1), text: '', isCorrect: false });
+      }
+    } else if (newNum < updatedOptions.length) {
+      // Remove options
+      updatedOptions = updatedOptions.slice(0, newNum);
+    }
+    
+    setFormData({ ...formData, options: updatedOptions });
+  };
+
+  // Update option text
+  const updateOptionText = (index: number, text: string) => {
+    const updatedOptions = [...(formData.options || [])];
+    updatedOptions[index].text = text;
+    setFormData({ ...formData, options: updatedOptions });
+  };
+
+  // Set correct answer
+  const setCorrectAnswer = (index: number) => {
+    const updatedOptions = (formData.options || []).map((opt, idx) => ({
+      ...opt,
+      isCorrect: idx === index,
+    }));
+    setFormData({ ...formData, options: updatedOptions });
+  };
 
   const handleSubmit = () => {
     if (!formData.question || !formData.question.trim()) {
@@ -302,11 +348,28 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
       return;
     }
 
+    // Validate MCQ
+    if (formData.type === 'mcq') {
+      const filledOptions = (formData.options || []).filter(opt => opt.text.trim());
+      if (filledOptions.length < 2) {
+        alert('MCQ must have at least 2 options');
+        return;
+      }
+      const correctCount = filledOptions.filter(opt => opt.isCorrect).length;
+      if (correctCount !== 1) {
+        alert('MCQ must have exactly 1 correct option');
+        return;
+      }
+    }
+
     // Ensure marks is a number
     const submittedData = {
       ...formData,
       marks: parseInt(String(formData.marks), 10),
-      question: formData.question.trim()
+      question: formData.question.trim(),
+      options: formData.type === 'mcq' 
+        ? (formData.options || []).filter(opt => opt.text.trim())
+        : formData.options,
     };
 
     onSave(submittedData);
@@ -315,9 +378,15 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
       type: 'mcq',
       marks: 1,
       difficulty: 'medium',
-      options: [{ id: '1', text: '', isCorrect: false }],
+      options: [
+        { id: '1', text: '', isCorrect: false },
+        { id: '2', text: '', isCorrect: false },
+      ],
     });
+    setNumOptions(2);
   };
+
+  const isMCQ = formData.type === 'mcq';
 
   return (
     <div className="bg-[#0a0c10] border border-teal-500/30 rounded-lg p-4 mb-4">
@@ -332,7 +401,21 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
         <div className="grid grid-cols-3 gap-3">
           <select
             value={formData.type}
-            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            onChange={(e) => {
+              const newType = e.target.value;
+              setFormData({ ...formData, type: newType });
+              if (newType === 'true-false') {
+                setFormData({
+                  ...formData,
+                  type: newType,
+                  options: [
+                    { id: '1', text: 'True', isCorrect: false },
+                    { id: '2', text: 'False', isCorrect: false },
+                  ],
+                });
+                setNumOptions(2);
+              }
+            }}
             className="bg-[#1e2330] border border-[#2d3340] text-white px-3 py-2 rounded-lg focus:outline-none focus:border-teal-500"
           >
             <option value="mcq">MCQ</option>
@@ -358,6 +441,65 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
             <option value="hard">Hard</option>
           </select>
         </div>
+
+        {/* MCQ Options Section */}
+        {isMCQ && (
+          <div className="bg-[#111318] border border-[#2d3340] rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-semibold text-[#9ca3af]">Number of Options</label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => updateNumOptions(numOptions - 1)}
+                  className="px-2 py-1 bg-[#1e2330] text-white rounded hover:bg-[#2d3340]"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min="2"
+                  max="10"
+                  value={numOptions}
+                  onChange={(e) => updateNumOptions(parseInt(e.target.value) || 2)}
+                  className="w-12 bg-[#1e2330] border border-[#2d3340] text-white px-2 py-1 rounded text-center focus:outline-none focus:border-teal-500"
+                />
+                <button
+                  onClick={() => updateNumOptions(numOptions + 1)}
+                  className="px-2 py-1 bg-[#1e2330] text-white rounded hover:bg-[#2d3340]"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {(formData.options || []).map((option, index) => (
+                <div key={option.id} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="correct-answer"
+                    checked={option.isCorrect}
+                    onChange={() => setCorrectAnswer(index)}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    placeholder={`Option ${index + 1}`}
+                    value={option.text}
+                    onChange={(e) => updateOptionText(index, e.target.value)}
+                    className="flex-1 bg-[#1e2330] border border-[#2d3340] text-white px-3 py-2 rounded-lg focus:outline-none focus:border-teal-500 text-sm"
+                  />
+                  {option.isCorrect && (
+                    <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+                      ✓ Correct
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-[#6b7280] mt-2">Select the radio button to mark the correct answer</p>
+          </div>
+        )}
+
         <div className="flex gap-2">
           <button
             onClick={handleSubmit}
@@ -385,10 +527,91 @@ interface QuestionEditorModalProps {
 
 function QuestionEditorModal({ question, onSave, onClose }: QuestionEditorModalProps) {
   const [formData, setFormData] = useState<Question>(question);
+  const [numOptions, setNumOptions] = useState(
+    question?.options?.length || 2
+  );
+
+  // Update number of options for MCQ
+  const updateNumOptions = (newNum: number) => {
+    if (newNum < 2) newNum = 2;
+    if (newNum > 10) newNum = 10;
+    
+    setNumOptions(newNum);
+    
+    const currentOptions = formData.options || [];
+    let updatedOptions = [...currentOptions];
+    
+    if (newNum > updatedOptions.length) {
+      // Add new options
+      for (let i = updatedOptions.length; i < newNum; i++) {
+        updatedOptions.push({ id: String(i + 1), text: '', isCorrect: false });
+      }
+    } else if (newNum < updatedOptions.length) {
+      // Remove options
+      updatedOptions = updatedOptions.slice(0, newNum);
+    }
+    
+    setFormData({ ...formData, options: updatedOptions });
+  };
+
+  // Update option text
+  const updateOptionText = (index: number, text: string) => {
+    const updatedOptions = [...(formData.options || [])];
+    updatedOptions[index].text = text;
+    setFormData({ ...formData, options: updatedOptions });
+  };
+
+  // Set correct answer
+  const setCorrectAnswer = (index: number) => {
+    const updatedOptions = (formData.options || []).map((opt, idx) => ({
+      ...opt,
+      isCorrect: idx === index,
+    }));
+    setFormData({ ...formData, options: updatedOptions });
+  };
+
+  const isMCQ = formData.type === 'mcq';
+
+  const handleSave = () => {
+    if (!formData.question || !formData.question.trim()) {
+      alert('Please enter question text');
+      return;
+    }
+    if (!formData.marks || formData.marks < 1) {
+      alert('Please enter marks (minimum 1)');
+      return;
+    }
+
+    // Validate MCQ
+    if (isMCQ) {
+      const filledOptions = (formData.options || []).filter(opt => opt.text.trim());
+      if (filledOptions.length < 2) {
+        alert('MCQ must have at least 2 options');
+        return;
+      }
+      const correctCount = filledOptions.filter(opt => opt.isCorrect).length;
+      if (correctCount !== 1) {
+        alert('MCQ must have exactly 1 correct option');
+        return;
+      }
+    }
+
+    const submittedData = {
+      ...formData,
+      marks: parseInt(String(formData.marks), 10),
+      question: formData.question.trim(),
+      options: isMCQ
+        ? (formData.options || []).filter(opt => opt.text.trim())
+        : formData.options,
+    };
+
+    onSave(submittedData);
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60]">
-      <div className="bg-[#111318] border border-[#1e2330] rounded-xl w-full max-w-2xl p-6">
+      <div className="bg-[#111318] border border-[#1e2330] rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
         <h3 className="text-lg font-bold text-white mb-4">Edit Question</h3>
         <div className="space-y-4">
           <input
@@ -403,9 +626,34 @@ function QuestionEditorModal({ question, onSave, onClose }: QuestionEditorModalP
               type="number"
               placeholder="Marks"
               value={formData.marks || 1}
+              min="1"
               onChange={(e) => setFormData({ ...formData, marks: parseInt(e.target.value) || 1 })}
               className="bg-[#0a0c10] border border-[#2d3340] text-white px-3 py-2 rounded-lg"
             />
+            <select
+              value={formData.type || 'mcq'}
+              onChange={(e) => {
+                const newType = e.target.value;
+                setFormData({ ...formData, type: newType });
+                if (newType === 'true-false') {
+                  setFormData({
+                    ...formData,
+                    type: newType,
+                    options: [
+                      { id: '1', text: 'True', isCorrect: false },
+                      { id: '2', text: 'False', isCorrect: false },
+                    ],
+                  });
+                  setNumOptions(2);
+                }
+              }}
+              className="bg-[#0a0c10] border border-[#2d3340] text-white px-3 py-2 rounded-lg"
+            >
+              <option value="mcq">MCQ</option>
+              <option value="short-answer">Short Answer</option>
+              <option value="essay">Essay</option>
+              <option value="true-false">True/False</option>
+            </select>
             <select
               value={formData.difficulty}
               onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
@@ -416,19 +664,75 @@ function QuestionEditorModal({ question, onSave, onClose }: QuestionEditorModalP
               <option value="hard">Hard</option>
             </select>
           </div>
+
+          {/* MCQ Options Section */}
+          {isMCQ && (
+            <div className="bg-[#0a0c10] border border-[#2d3340] rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold text-[#9ca3af]">Number of Options</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => updateNumOptions(numOptions - 1)}
+                    className="px-2 py-1 bg-[#1e2330] text-white rounded hover:bg-[#2d3340]"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="2"
+                    max="10"
+                    value={numOptions}
+                    onChange={(e) => updateNumOptions(parseInt(e.target.value) || 2)}
+                    className="w-12 bg-[#1e2330] border border-[#2d3340] text-white px-2 py-1 rounded text-center focus:outline-none focus:border-teal-500"
+                  />
+                  <button
+                    onClick={() => updateNumOptions(numOptions + 1)}
+                    className="px-2 py-1 bg-[#1e2330] text-white rounded hover:bg-[#2d3340]"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {(formData.options || []).map((option, index) => (
+                  <div key={option.id} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="correct-answer"
+                      checked={option.isCorrect}
+                      onChange={() => setCorrectAnswer(index)}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      placeholder={`Option ${index + 1}`}
+                      value={option.text}
+                      onChange={(e) => updateOptionText(index, e.target.value)}
+                      className="flex-1 bg-[#1e2330] border border-[#2d3340] text-white px-3 py-2 rounded-lg focus:outline-none focus:border-teal-500 text-sm"
+                    />
+                    {option.isCorrect && (
+                      <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+                        ✓ Correct
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-[#6b7280] mt-2">Select the radio button to mark the correct answer</p>
+            </div>
+          )}
+
           <textarea
             placeholder="Explanation (optional)"
             value={formData.explanation || ''}
             onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
-            className="w-full bg-[#0a0c10] border border-[#2d3340] text-white px-3 py-2 rounded-lg focus:outline-none focus:border-teal-500 min-h-24"
+            className="w-full bg-[#0a0c10] border border-[#2d3340] text-white px-3 py-2 rounded-lg focus:outline-none focus:border-teal-500 min-h-20"
           />
         </div>
         <div className="flex gap-2 mt-6">
           <button
-            onClick={() => {
-              onSave(formData);
-              onClose();
-            }}
+            onClick={handleSave}
             className="flex-1 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg font-semibold"
           >
             Save Changes
