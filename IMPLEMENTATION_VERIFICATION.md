@@ -25,18 +25,18 @@
   - getQuestionStats() - Statistics aggregation
   
 - [x] Questions Routes (`backend/src/routes/questionsRoutes.js`)
-  - GET /exams/:examId/questions
-  - POST /exams/:examId/questions
-  - PUT /exams/:examId/questions/:questionId
-  - DELETE /exams/:examId/questions/:questionId
-  - POST /exams/:examId/questions/bulk
-  - POST /exams/:examId/questions/reorder
-  - GET /exams/:examId/questions/stats
+  - GET /:examId/questions (resolves to /api/exams/:examId/questions)
+  - POST /:examId/questions (resolves to /api/exams/:examId/questions)
+  - PUT /:examId/questions/:questionId (resolves to /api/exams/:examId/questions/:questionId)
+  - DELETE /:examId/questions/:questionId (resolves to /api/exams/:examId/questions/:questionId)
+  - POST /:examId/questions/bulk (resolves to /api/exams/:examId/questions/bulk)
+  - POST /:examId/questions/reorder (resolves to /api/exams/:examId/questions/reorder)
+  - GET /:examId/questions/stats (resolves to /api/exams/:examId/questions/stats)
   
 - [x] Routes Mounted (`backend/src/app.js`)
   - Properly imported questionsRoutes
-  - Mounted at `/api/exams` path
-  - Nested parameter support with mergeParams
+  - Mounted at `/api/exams` path with nested routes
+  - Nested parameter support with mergeParams enabled
 
 ### ✅ Frontend Layer (100% Complete)
 - [x] ExamEditor Component (`frontend/src/pages/admin/exams/components/ExamEditor.tsx`)
