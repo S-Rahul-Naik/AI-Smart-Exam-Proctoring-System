@@ -50,21 +50,55 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
 
   const handleAddQuestion = async (newQuestion: Question) => {
     try {
-      const response = await examAPI.createQuestion(examId, newQuestion);
+      // Validate required fields
+      if (!newQuestion.question || newQuestion.question.trim() === '') {
+        alert('Please enter question text');
+        return;
+      }
+      if (!newQuestion.marks || newQuestion.marks < 1) {
+        alert('Please enter valid marks');
+        return;
+      }
+
+      // Ensure marks is a number
+      const questionData = {
+        ...newQuestion,
+        marks: parseInt(String(newQuestion.marks), 10)
+      };
+
+      const response = await examAPI.createQuestion(examId, questionData);
       setQuestions([...questions, response.data.question]);
-      setTotalMarks(totalMarks + newQuestion.marks);
+      setTotalMarks(totalMarks + questionData.marks);
       setIsAddingQuestion(false);
-    } catch (error) {
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to create question';
+      alert(`Error: ${errorMsg}`);
       console.error('Error creating question:', error);
     }
   };
 
   const handleUpdateQuestion = async (updatedQuestion: Question) => {
     try {
-      const response = await examAPI.updateQuestion(examId, updatedQuestion._id, updatedQuestion);
+      if (!updatedQuestion.question || updatedQuestion.question.trim() === '') {
+        alert('Please enter question text');
+        return;
+      }
+      if (!updatedQuestion.marks || updatedQuestion.marks < 1) {
+        alert('Please enter valid marks');
+        return;
+      }
+
+      const questionData = {
+        ...updatedQuestion,
+        marks: parseInt(String(updatedQuestion.marks), 10)
+      };
+
+      const response = await examAPI.updateQuestion(examId, updatedQuestion._id!, questionData);
       setQuestions(questions.map(q => q._id === updatedQuestion._id ? response.data.question : q));
       setSelectedQuestion(null);
-    } catch (error) {
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to update question';
+      alert(`Error: ${errorMsg}`);
       console.error('Error updating question:', error);
     }
   };
@@ -259,11 +293,23 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
   });
 
   const handleSubmit = () => {
-    if (!formData.question || !formData.marks) {
-      alert('Please fill in all required fields');
+    if (!formData.question || !formData.question.trim()) {
+      alert('Please enter question text');
       return;
     }
-    onSave(formData);
+    if (!formData.marks || formData.marks < 1) {
+      alert('Please enter marks (minimum 1)');
+      return;
+    }
+
+    // Ensure marks is a number
+    const submittedData = {
+      ...formData,
+      marks: parseInt(String(formData.marks), 10),
+      question: formData.question.trim()
+    };
+
+    onSave(submittedData);
     setFormData({
       question: '',
       type: 'mcq',
@@ -297,9 +343,9 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
           <input
             type="number"
             placeholder="Marks"
-            value={formData.marks}
+            value={formData.marks || 1}
             min="1"
-            onChange={(e) => setFormData({ ...formData, marks: parseInt(e.target.value) })}
+            onChange={(e) => setFormData({ ...formData, marks: parseInt(e.target.value) || 1 })}
             className="bg-[#1e2330] border border-[#2d3340] text-white px-3 py-2 rounded-lg focus:outline-none focus:border-teal-500"
           />
           <select
@@ -356,8 +402,8 @@ function QuestionEditorModal({ question, onSave, onClose }: QuestionEditorModalP
             <input
               type="number"
               placeholder="Marks"
-              value={formData.marks}
-              onChange={(e) => setFormData({ ...formData, marks: parseInt(e.target.value) })}
+              value={formData.marks || 1}
+              onChange={(e) => setFormData({ ...formData, marks: parseInt(e.target.value) || 1 })}
               className="bg-[#0a0c10] border border-[#2d3340] text-white px-3 py-2 rounded-lg"
             />
             <select
