@@ -241,8 +241,16 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
   );
 }
 
-function QuestionForm({ question, examMarks, onSave, onCancel }) {
-  const [formData, setFormData] = useState(question || {
+interface QuestionFormProps {
+  question?: Question;
+  examMarks?: number;
+  onSave: (question: Question) => void;
+  onCancel: () => void;
+}
+
+function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormProps) {
+  const [formData, setFormData] = useState<Question>(question || {
+    number: 0,
     question: '',
     type: 'mcq',
     marks: 1,
@@ -323,8 +331,14 @@ function QuestionForm({ question, examMarks, onSave, onCancel }) {
   );
 }
 
-function QuestionEditorModal({ question, onSave, onClose }) {
-  const [formData, setFormData] = useState(question);
+interface QuestionEditorModalProps {
+  question: Question;
+  onSave: (question: Question) => void;
+  onClose: () => void;
+}
+
+function QuestionEditorModal({ question, onSave, onClose }: QuestionEditorModalProps) {
+  const [formData, setFormData] = useState<Question>(question);
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60]">
