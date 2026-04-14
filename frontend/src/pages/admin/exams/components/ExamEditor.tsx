@@ -5,7 +5,7 @@ interface Question {
   _id?: string;
   number: number;
   question: string;
-  type: 'mcq' | 'short-answer' | 'essay' | 'true-false';
+  type: 'mcq' | 'true-false';
   marks: number;
   options?: Array<{ id: string; text: string; isCorrect: boolean }>;
   difficulty?: 'easy' | 'medium' | 'hard';
@@ -25,10 +25,11 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [totalMarks, setTotalMarks] = useState(0);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     loadExamData();
-  }, [examId]);
+  }, [examId, refreshTrigger]);
 
   const loadExamData = async () => {
     try {
@@ -140,7 +141,7 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="bg-[#0a0c10] border border-[#1e2330] rounded-lg p-4">
               <div className="text-[#6b7280] text-xs font-semibold uppercase">Questions</div>
               <div className="text-2xl font-bold text-teal-400">{questions.length}</div>
@@ -148,10 +149,6 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
             <div className="bg-[#0a0c10] border border-[#1e2330] rounded-lg p-4">
               <div className="text-[#6b7280] text-xs font-semibold uppercase">Total Marks</div>
               <div className="text-2xl font-bold text-orange-400">{totalMarks}</div>
-            </div>
-            <div className="bg-[#0a0c10] border border-[#1e2330] rounded-lg p-4">
-              <div className="text-[#6b7280] text-xs font-semibold uppercase">Exam Marks</div>
-              <div className="text-2xl font-bold text-blue-400">{exam?.totalMarks}</div>
             </div>
             <div className="bg-[#0a0c10] border border-[#1e2330] rounded-lg p-4">
               <div className="text-[#6b7280] text-xs font-semibold uppercase">Status</div>
@@ -362,6 +359,15 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
       }
     }
 
+    // Validate True/False
+    if (formData.type === 'true-false') {
+      const correctCount = (formData.options || []).filter(opt => opt.isCorrect).length;
+      if (correctCount !== 1) {
+        alert('True/False question must have exactly 1 correct answer. Please select either True or False as the correct answer.');
+        return;
+      }
+    }
+
     // Ensure marks is a number
     const submittedData = {
       ...formData,
@@ -418,9 +424,7 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
             }}
             className="bg-[#1e2330] border border-[#2d3340] text-white px-3 py-2 rounded-lg focus:outline-none focus:border-teal-500"
           >
-            <option value="mcq">MCQ</option>
-            <option value="short-answer">Short Answer</option>
-            <option value="essay">Essay</option>
+            <option value="mcq">MCQ (Multiple Choice)</option>
             <option value="true-false">True/False</option>
           </select>
           <input
@@ -497,6 +501,35 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
               ))}
             </div>
             <p className="text-xs text-[#6b7280] mt-2">Select the radio button to mark the correct answer</p>
+          </div>
+        )}
+
+        {/* True/False Section */}
+        {!isMCQ && formData.type === 'true-false' && (
+          <div className="bg-[#111318] border border-[#2d3340] rounded-lg p-4 space-y-3">
+            <label className="text-sm font-semibold text-[#9ca3af]">Select Correct Answer</label>
+            <div className="space-y-2">
+              {(formData.options || []).map((option, index) => (
+                <div key={option.id} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="true-false-answer"
+                    checked={option.isCorrect}
+                    onChange={() => setCorrectAnswer(index)}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <label className="flex-1 text-white cursor-pointer font-medium">
+                    {option.text}
+                  </label>
+                  {option.isCorrect && (
+                    <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+                      ✓ Correct
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-[#6b7280] mt-2">Select True or False as the correct answer</p>
           </div>
         )}
 

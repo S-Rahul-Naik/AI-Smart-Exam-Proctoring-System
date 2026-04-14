@@ -10,11 +10,12 @@ class ScoringService {
    * Calculate exam score based on submitted answers
    * @param {string} examId - The exam ID
    * @param {Map} answers - Map of questionId to student's answer
+   * @param {boolean} isAutoSubmitted - Whether exam was auto-submitted due to malpractice
    * @returns {Promise<{score: number, percentage: number, breakdown: object}>}
    */
-  async calculateExamScore(examId, answers) {
+  async calculateExamScore(examId, answers, isAutoSubmitted = false) {
     try {
-      if (!answers || answers.size === 0) {
+      if (!answers || (answers.size === 0 && !isAutoSubmitted)) {
         return { score: 0, percentage: 0, breakdown: {}, totalMarks: 0, obtainedMarks: 0 };
       }
 
@@ -25,6 +26,10 @@ class ScoringService {
         return { score: 0, percentage: 0, breakdown: {}, totalMarks: 0, obtainedMarks: 0 };
       }
 
+      // Fetch exam to get total marks
+      const exam = await Exam.findById(examId);
+      const examTotalMarks = exam?.totalMarks || 100;
+
       let totalMarks = 0;
       let obtainedMarks = 0;
       const breakdown = {};
@@ -34,10 +39,13 @@ class ScoringService {
         const questionId = question._id.toString();
         const studentAnswer = answers.get ? answers.get(questionId) : answers[questionId];
 
-        totalMarks += question.marks;
+        // Use per-question marks instead of calculating from total
+        const questionMarks = question.marks || 1;
+        totalMarks += questionMarks;
+
         breakdown[questionId] = {
           questionNumber: question.number,
-          marks: question.marks,
+          marks: questionMarks,
           type: question.type,
           studentAnswer,
           isCorrect: false,
@@ -60,26 +68,26 @@ class ScoringService {
           isCorrect =
             studentAnswer &&
             studentAnswer.toLowerCase() === question.correctAnswer?.toLowerCase();
-        } else if (question.type === 'short-answer' || question.type === 'essay') {
-          // For essay/short-answer, mark as correct if answered (admin will manually review)
-          // In a real system, you'd use AI or keyword matching
-          isCorrect = !!studentAnswer && studentAnswer.trim().length > 0;
         }
 
         if (isCorrect) {
-          obtainedMarks += question.marks;
+          obtainedMarks += questionMarks;
           breakdown[questionId].isCorrect = true;
-          breakdown[questionId].marksObtained = question.marks;
+          breakdown[questionId].marksObtained = questionMarks;
+        } else if (isAutoSubmitted && !studentAnswer) {
+          // For auto-submitted exams, unanswered questions = 0 marks
+          breakdown[questionId].marksObtained = 0;
         }
       }
 
-      // Calculate percentage
+      // Calculate percentage based on actual total marks (sum of per-question marks)
       const percentage = totalMarks > 0 ? Math.round((obtainedMarks / totalMarks) * 100) : 0;
 
       console.log(`✅ Score Calculation:`, {
         totalMarks,
         obtainedMarks,
         percentage: `${percentage}%`,
+        isAutoSubmitted,
       });
 
       return {

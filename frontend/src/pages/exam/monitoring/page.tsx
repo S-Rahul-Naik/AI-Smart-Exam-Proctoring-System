@@ -13,34 +13,6 @@ import { useBackgroundFaceVerification } from '../../../hooks/useBackgroundFaceV
 import { sessionAPI, examAPI, studentAPI } from '../../../services/api';
 import { useAuth } from '../../../hooks/useAuth';
 
-const questions = [
-  {
-    id: 1,
-    text: 'Which data structure provides O(log n) search time and maintains sorted order?',
-    options: ['Hash Table', 'Binary Search Tree', 'Linked List', 'Stack'],
-  },
-  {
-    id: 2,
-    text: "What is the time complexity of Dijkstra's algorithm using a min-heap?",
-    options: ['O(V²)', 'O(E log V)', 'O(V + E)', 'O(V log E)'],
-  },
-  {
-    id: 3,
-    text: 'Which algorithm paradigm is used in the Bellman-Ford algorithm?',
-    options: ['Greedy', 'Divide and Conquer', 'Dynamic Programming', 'Backtracking'],
-  },
-  {
-    id: 4,
-    text: 'What is the worst-case space complexity of merge sort?',
-    options: ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'],
-  },
-  {
-    id: 5,
-    text: 'Which traversal visits the root node last?',
-    options: ['In-order', 'Pre-order', 'Post-order', 'Level-order'],
-  },
-];
-
 export default function ExamMonitoringPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -57,12 +29,15 @@ export default function ExamMonitoringPage() {
     videoRef,
     aiEvents: proctorState.sessionEvents,
     focusViolations: focusLock.violations,
-    enhancedMonitoringEvents: enhancedMonitoring.events, // Include phone detection events
+    enhancedMonitoringEvents: enhancedMonitoring.events,
   });
 
+  // Question state
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(10800);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<number, any>>({});
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [currentQ, setCurrentQ] = useState(0);
   const [showFeedback, setShowFeedback] = useState<string | null>(null);
@@ -91,64 +66,79 @@ export default function ExamMonitoringPage() {
   // Initialize continuous face matching hook
   const continuousFaceMatching = useContinuousFaceMatching(videoRef, enrollmentPhotoUrl, true, 30000);
 
-  // Initialize background face verification hook - runs silently, auto-submits on failure
-  // NOTE: Currently disabled (401 auth errors) - can be re-enabled once token handling is fixed
+  // Initialize background face verification hook
   const backgroundFaceVerification = useBackgroundFaceVerification(
     videoRef,
     enrollmentPhotoUrl,
-    false, // DISABLED - see note above
+    false,
     sessionId,
     (reason) => {
-      // Callback when auto-submit is triggered
       console.error('🚨 Auto-submit triggered from background verification:', reason);
       handleAutoSubmit(reason);
     }
   );
 
-  // Initialize session on mount
+  // Update risk scores for admin alerts
   useEffect(() => {
-    // Update risk scores for admin alerts
     riskScoresRef.current = { current_student: proctorState.riskScore };
   }, [proctorState.riskScore]);
 
-  // Initialize session on mount
+  // Fetch exam questions from database
   useEffect(() => {
-    // Get examId from query params or sessionStorage
-    let currentExamId = examId || sessionStorage.getItem('examId');
-    
-    if (!user?.id) {
-      console.error('User not authenticated, redirecting');
-      navigate('/exam/precheck');
-      return;
-    }
-
-    if (!currentExamId) {
-      console.error('No exam ID provided');
-      navigate('/exam/precheck');
-      return;
-    }
-
-    const initSession = async () => {
+    const fetchExamQuestions = async () => {
+      if (!examId) {
+        console.log('❌ No examId found in search params');
+        return;
+      }
       try {
-        const response = await sessionAPI.initializeSession(currentExamId);
-        const newSessionId = response.data.session._id;
-        setSessionId(newSessionId);
-        
-        // Start session
-        await sessionAPI.startSession(newSessionId);
+        setQuestionsLoading(true);
+        console.log('📚 Fetching questions for examId:', examId);
+        const response = await examAPI.getExamQuestions(examId);
+        console.log('✅ Questions fetched:', response.data);
+        setQuestions(response.data.questions || []);
       } catch (error: any) {
-        console.error('Failed to initialize session:', {
-          message: error.message,
+        console.error('❌ Failed to fetch exam questions:', {
+          examId,
+          error: error.message,
           status: error.response?.status,
           data: error.response?.data,
-          config: error.config?.data,
         });
-        navigate('/exam/precheck');
+        setQuestions([]);
+      } finally {
+        setQuestionsLoading(false);
       }
     };
 
-    initSession();
-  }, [user, navigate]);
+    fetchExamQuestions();
+  }, [examId]);
+
+  // Start exam session
+  useEffect(() => {
+    const startExamSession = async () => {
+      if (!examId) return;
+      try {
+        console.log('🔄 Starting exam session for examId:', examId);
+        const response = await sessionAPI.startSession(examId);
+        const newSessionId = response.data?.sessionId || response.data?.session?._id;
+        if (newSessionId) {
+          console.log('✅ Session created:', newSessionId);
+          setSessionId(newSessionId);
+          setExamStarted(true);
+        } else {
+          console.error('❌ No session ID in response:', response.data);
+        }
+      } catch (error: any) {
+        console.error('❌ Failed to start session:', {
+          examId,
+          error: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+    };
+
+    startExamSession();
+  }, [examId]);
 
   // Load enrollment photos for face matching
   useEffect(() => {
@@ -512,8 +502,8 @@ export default function ExamMonitoringPage() {
       criticalViolations.push('face_swap_suspected');
     }
     
-    // 2. Check for phone detection (only 65%+ confidence)
-    const PHONE_CONFIDENCE_THRESHOLD = 65;
+    // 2. Check for phone detection (only 75%+ confidence)
+    const PHONE_CONFIDENCE_THRESHOLD = 75;
     const phoneDetected = enhancedMonitoring.events?.some(
       ev => ev.type === 'phone_detected' && ev.confidence >= PHONE_CONFIDENCE_THRESHOLD
     );
@@ -990,50 +980,133 @@ export default function ExamMonitoringPage() {
             </div>
 
             <div className="bg-[#111318] border border-[#1e2330] rounded-2xl p-7 mb-5">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-teal-400 text-xs font-bold bg-teal-500/10 px-2.5 py-1 rounded-full">Q{currentQ + 1}</span>
-                <span className="text-[#4b5563] text-xs">Multiple Choice · 5 marks</span>
-              </div>
-              <p className="text-white text-base leading-relaxed font-medium mb-6">
-                {questions[currentQ].text}
-              </p>
-              <div className="space-y-3">
-                {questions[currentQ].options.map((opt, oi) => (
-                  <div
-                    key={oi}
-                    onClick={() => {
-                      if (!(examStarted && verificationStep === 'verifying')) {
-                        setAnswers(prev => ({ ...prev, [currentQ + 1]: oi }));
-                      }
-                    }}
-                    className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
-                      examStarted && verificationStep === 'verifying' ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
-                    } ${
-                      answers[currentQ + 1] === oi
-                        ? 'bg-teal-500/10 border-teal-500/40 text-white'
-                        : 'bg-[#0a0c10] border-[#1e2330] text-[#9ca3af] hover:border-[#2d3139] hover:text-white'
-                    }`}
-                  >
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${answers[currentQ + 1] === oi ? 'border-teal-500 bg-teal-500' : 'border-[#4b5563]'}`}>
-                      {answers[currentQ + 1] === oi && <div className="w-2 h-2 rounded-full bg-white" />}
-                    </div>
-                    <span className="text-sm">{opt}</span>
+              {questionsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-[#6b7280] text-sm">Loading questions...</p>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : questions.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-[#6b7280] text-sm">No questions available for this exam</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-teal-400 text-xs font-bold bg-teal-500/10 px-2.5 py-1 rounded-full">Q{currentQ + 1}</span>
+                    <span className="text-[#4b5563] text-xs">
+                      {questions[currentQ]?.type === 'mcq' ? 'Multiple Choice' : 
+                       questions[currentQ]?.type === 'true-false' ? 'True/False' :
+                       questions[currentQ]?.type === 'short-answer' ? 'Short Answer' :
+                       questions[currentQ]?.type === 'essay' ? 'Essay' : 'Question'}
+                       {questions[currentQ]?.marks ? ` · ${questions[currentQ].marks} marks` : ''}
+                    </span>
+                  </div>
+                  <p className="text-white text-base leading-relaxed font-medium mb-6">
+                    {questions[currentQ]?.question}
+                  </p>
+
+                  {/* MCQ Options */}
+                  {(questions[currentQ]?.type === 'mcq' || !questions[currentQ]?.type) && questions[currentQ]?.options ? (
+                    <div className="space-y-3">
+                      {questions[currentQ].options.map((opt: any, oi: number) => (
+                        <div
+                          key={oi}
+                          onClick={() => {
+                            if (!(examStarted && verificationStep === 'verifying')) {
+                              setAnswers(prev => ({ ...prev, [currentQ]: oi }));
+                            }
+                          }}
+                          className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
+                            examStarted && verificationStep === 'verifying' ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
+                          } ${
+                            answers[currentQ] === oi
+                              ? 'bg-teal-500/10 border-teal-500/40 text-white'
+                              : 'bg-[#0a0c10] border-[#1e2330] text-[#9ca3af] hover:border-[#2d3139] hover:text-white'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${answers[currentQ] === oi ? 'border-teal-500 bg-teal-500' : 'border-[#4b5563]'}`}>
+                            {answers[currentQ] === oi && <div className="w-2 h-2 rounded-full bg-white" />}
+                          </div>
+                          <span className="text-sm">{typeof opt === 'string' ? opt : opt.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {/* True/False Options */}
+                  {questions[currentQ]?.type === 'true-false' ? (
+                    <div className="space-y-3">
+                      {['True', 'False'].map((opt, oi) => (
+                        <div
+                          key={oi}
+                          onClick={() => {
+                            if (!(examStarted && verificationStep === 'verifying')) {
+                              setAnswers(prev => ({ ...prev, [currentQ]: opt }));
+                            }
+                          }}
+                          className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
+                            examStarted && verificationStep === 'verifying' ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
+                          } ${
+                            answers[currentQ] === opt
+                              ? 'bg-teal-500/10 border-teal-500/40 text-white'
+                              : 'bg-[#0a0c10] border-[#1e2330] text-[#9ca3af] hover:border-[#2d3139] hover:text-white'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${answers[currentQ] === opt ? 'border-teal-500 bg-teal-500' : 'border-[#4b5563]'}`}>
+                            {answers[currentQ] === opt && <div className="w-2 h-2 rounded-full bg-white" />}
+                          </div>
+                          <span className="text-sm">{opt}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {/* Short Answer */}
+                  {questions[currentQ]?.type === 'short-answer' ? (
+                    <textarea
+                      value={answers[currentQ] || ''}
+                      onChange={(e) => {
+                        if (!(examStarted && verificationStep === 'verifying')) {
+                          setAnswers(prev => ({ ...prev, [currentQ]: e.target.value }));
+                        }
+                      }}
+                      disabled={examStarted && verificationStep === 'verifying'}
+                      placeholder="Type your answer here..."
+                      className="w-full bg-[#0a0c10] border border-[#1e2330] text-white px-4 py-3 rounded-xl focus:outline-none focus:border-teal-500 resize-none h-28 disabled:opacity-40"
+                    />
+                  ) : null}
+
+                  {/* Essay */}
+                  {questions[currentQ]?.type === 'essay' ? (
+                    <textarea
+                      value={answers[currentQ] || ''}
+                      onChange={(e) => {
+                        if (!(examStarted && verificationStep === 'verifying')) {
+                          setAnswers(prev => ({ ...prev, [currentQ]: e.target.value }));
+                        }
+                      }}
+                      disabled={examStarted && verificationStep === 'verifying'}
+                      placeholder="Write your essay here..."
+                      className="w-full bg-[#0a0c10] border border-[#1e2330] text-white px-4 py-3 rounded-xl focus:outline-none focus:border-teal-500 resize-none h-40 disabled:opacity-40"
+                    />
+                  ) : null}
+                </>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setCurrentQ(Math.max(0, currentQ - 1))}
-                disabled={currentQ === 0 || (examStarted && verificationStep === 'verifying')}
+                disabled={currentQ === 0 || (examStarted && verificationStep === 'verifying') || questions.length === 0}
                 className="flex items-center gap-2 text-[#6b7280] hover:text-white text-sm cursor-pointer disabled:opacity-30 whitespace-nowrap"
               >
                 <i className="ri-arrow-left-line" /> Previous
               </button>
               <button
                 onClick={() => setCurrentQ(Math.min(questions.length - 1, currentQ + 1))}
-                disabled={currentQ === questions.length - 1 || (examStarted && verificationStep === 'verifying')}
+                disabled={currentQ === questions.length - 1 || (examStarted && verificationStep === 'verifying') || questions.length === 0}
                 className="flex items-center gap-2 text-[#6b7280] hover:text-white text-sm cursor-pointer disabled:opacity-30 whitespace-nowrap"
               >
                 Next <i className="ri-arrow-right-line" />

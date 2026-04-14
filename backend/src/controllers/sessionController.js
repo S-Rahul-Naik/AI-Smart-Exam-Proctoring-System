@@ -125,18 +125,70 @@ export const startSession = async (req, res, next) => {
   try {
     const { sessionId } = req.params;
 
-    const session = await Session.findByIdAndUpdate(
-      sessionId,
-      { status: 'in_progress', startTime: new Date() },
-      { new: true }
-    );
-
+    // Get session and exam details
+    const session = await Session.findById(sessionId).populate('exam');
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    res.json({ message: 'Session started', session });
+    const exam = session.exam;
+
+    // ✅ VALIDATE EXAM DATE AND TIME
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (exam.date) {
+      const examDate = new Date(exam.date);
+      const examDateOnly = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
+
+      // Check if today is not the exam date
+      if (examDateOnly.getTime() !== today.getTime()) {
+        return res.status(403).json({
+          error: `Exam can only be taken on ${exam.date}. Today is ${today.toISOString().split('T')[0]}`,
+          examDate: exam.date,
+        });
+      }
+    }
+
+    // Check time window if start and end times are specified
+    if (exam.startTime && exam.endTime) {
+      const [startHour, startMin] = exam.startTime.split(':').map(Number);
+      const [endHour, endMin] = exam.endTime.split(':').map(Number);
+
+      const startTime = new Date(now);
+      startTime.setHours(startHour, startMin, 0, 0);
+
+      const endTime = new Date(now);
+      endTime.setHours(endHour, endMin, 0, 0);
+
+      if (now < startTime) {
+        return res.status(403).json({
+          error: `Exam has not started yet. It will start at ${exam.startTime}.`,
+          startTime: exam.startTime,
+          currentTime: now.toLocaleTimeString(),
+        });
+      }
+
+      if (now > endTime) {
+        return res.status(403).json({
+          error: `Exam has ended. It ended at ${exam.endTime}.`,
+          endTime: exam.endTime,
+          currentTime: now.toLocaleTimeString(),
+        });
+      }
+    }
+
+    // Update session status
+    const updatedSession = await Session.findByIdAndUpdate(
+      sessionId,
+      { status: 'in_progress', startTime: new Date() },
+      { new: true }
+    ).populate('exam');
+
+    console.log(`✅ Session ${sessionId} started successfully`);
+    res.json({ message: 'Session started', session: updatedSession });
   } catch (error) {
+    console.error('❌ Error starting session:', error.message);
     next(error);
   }
 };
@@ -156,17 +208,24 @@ export const submitSession = async (req, res, next) => {
     const duration = Date.now() - new Date(existingSession.startTime).getTime();
 
     // ✅ CALCULATE EXAM SCORE
-    let examScore = { score: 0, percentage: 0, breakdow: {} };
+    let examScore = { score: 0, percentage: 0, breakdown: {} };
     let riskScoreData = { riskScore: 0, riskLevel: 'low' };
+
+    // Determine if auto-submitted
+    const phoneDetected = existingSession.events?.some(e => e.type === 'phone_detected');
+    const multipleFacesDetected = existingSession.events?.some(e => e.type === 'multiple_faces');
+    const devtoolsDetected = existingSession.events?.some(e => e.type === 'devtools_open');
+    const isAutoSubmitted = phoneDetected || multipleFacesDetected || devtoolsDetected;
 
     try {
       // Calculate exam score from answers
       if (answers && existingSession.exam) {
         examScore = await scoringService.calculateExamScore(
           existingSession.exam._id,
-          new Map(Object.entries(answers))
+          new Map(Object.entries(answers)),
+          isAutoSubmitted  // Pass flag for auto-submitted handling
         );
-        console.log('✅ Exam score calculated:', { percentage: examScore.percentage });
+        console.log('✅ Exam score calculated:', { percentage: examScore.percentage, isAutoSubmitted });
       }
 
       // Calculate risk score from events
@@ -182,19 +241,16 @@ export const submitSession = async (req, res, next) => {
     const criticalViolations = [];
     
     // 1. Check for phone detected
-    const phoneDetected = existingSession.events?.some(e => e.type === 'phone_detected');
     if (phoneDetected) {
       criticalViolations.push('phone_detected');
     }
     
     // 2. Check for multiple faces
-    const multipleFacesDetected = existingSession.events?.some(e => e.type === 'multiple_faces');
     if (multipleFacesDetected) {
       criticalViolations.push('multiple_faces');
     }
     
     // 3. Check for devtools
-    const devtoolsDetected = existingSession.events?.some(e => e.type === 'devtools_open');
     if (devtoolsDetected) {
       criticalViolations.push('devtools_open');
     }

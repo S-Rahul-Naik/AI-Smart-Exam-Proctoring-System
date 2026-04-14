@@ -14,7 +14,7 @@ const questionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['mcq', 'short-answer', 'essay', 'true-false', 'matching'],
+      enum: ['mcq', 'true-false'],
       default: 'mcq',
       required: true,
     },
@@ -28,6 +28,7 @@ const questionSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 1,
+      max: 100,
     },
     difficulty: {
       type: String,
@@ -44,19 +45,6 @@ const questionSchema = new mongoose.Schema(
     ],
     // For true/false
     correctAnswer: String, // 'true' or 'false'
-    
-    // For essay/short answer
-    modelAnswer: String,
-    answerGuidelines: [String],
-    
-    // For matching type
-    matchingPairs: [
-      {
-        id: String,
-        left: String,
-        right: String,
-      },
-    ],
     
     // Metadata
     imageUrl: String, // For questions with images

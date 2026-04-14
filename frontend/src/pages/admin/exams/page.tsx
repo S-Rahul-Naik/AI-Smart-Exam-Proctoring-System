@@ -5,6 +5,28 @@ import { getDemoToken } from '../../../utils/examToken';
 import ExamEditor from './components/ExamEditor';
 import { examAPI } from '../../../services/api';
 
+// Helper functions for 12-hour time format conversion
+const formatTo12Hour = (time24: string): string => {
+  if (!time24) return '';
+  const [hours, minutes = '00'] = time24.split(':');
+  const hour = parseInt(hours, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  const mins = minutes || '00';
+  return `${String(hour12).padStart(2, '0')}:${mins} ${ampm}`;
+};
+
+const convertTo24Hour = (time12: string): string => {
+  if (!time12) return '';
+  const [time, ampm] = time12.split(' ');
+  const [hours, minutes = '00'] = time.split(':');
+  let hour = parseInt(hours, 10);
+  if (ampm === 'PM' && hour !== 12) hour += 12;
+  if (ampm === 'AM' && hour === 12) hour = 0;
+  const mins = minutes || '00';
+  return `${String(hour).padStart(2, '0')}:${mins}`;
+};
+
 // Static form fields configuration
 const EXAM_FORM_FIELDS = [
   { id: 'title', label: 'Exam Title', placeholder: 'e.g., Advanced Algorithms Final', type: 'text' },
@@ -18,7 +40,7 @@ const EXAM_FORM_FIELDS = [
 // Static exam details items
 const EXAM_DETAIL_ITEMS = [
   { id: 'date', icon: 'ri-calendar-line', getVal: (exam) => exam.date },
-  { id: 'time', icon: 'ri-time-line', getVal: (exam) => `${exam.startTime} – ${exam.endTime}` },
+  { id: 'time', icon: 'ri-time-line', getVal: (exam) => `${formatTo12Hour(exam.startTime)} – ${formatTo12Hour(exam.endTime)}` },
   { id: 'students', icon: 'ri-team-line', getVal: (exam) => `${exam.totalStudents} students` },
   { id: 'duration', icon: 'ri-timer-line', getVal: (exam) => `${exam.duration} min` },
 ];
@@ -32,6 +54,7 @@ export default function AdminExamsPage() {
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [editingExamMetadata, setEditingExamMetadata] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
+  const [editorRefreshKey, setEditorRefreshKey] = useState(0);
   const [createFormData, setCreateFormData] = useState({
     title: '',
     courseCode: '',
@@ -40,6 +63,7 @@ export default function AdminExamsPage() {
     startTime: '',
     endTime: '',
     description: '',
+    totalMarks: 100,
   });
 
   // Fetch exams from API
@@ -64,11 +88,9 @@ export default function AdminExamsPage() {
     e.title.toLowerCase().includes(search.toLowerCase()) || e.courseCode.toLowerCase().includes(search.toLowerCase())
   );
 
-  function copyInviteLink(examId: string) {
-    const token = getDemoToken(examId);
-    const url = `${window.location.origin}/exam/join?token=${token}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedId(examId);
+  function copyCourseCode(courseCode: string) {
+    navigator.clipboard.writeText(courseCode).then(() => {
+      setCopiedId(courseCode);
       setTimeout(() => setCopiedId(null), 2000);
     });
   }
@@ -92,6 +114,7 @@ export default function AdminExamsPage() {
       endTime: exam.endTime || '',
       duration: exam.duration || 60,
       description: exam.description || '',
+      totalMarks: exam.totalMarks || 100,
     });
   };
 
@@ -133,6 +156,10 @@ export default function AdminExamsPage() {
       alert('Please enter valid duration');
       return;
     }
+    if (!createFormData.totalMarks || createFormData.totalMarks < 1) {
+      alert('Please enter total marks for exam');
+      return;
+    }
 
     try {
       const payload = {
@@ -143,8 +170,8 @@ export default function AdminExamsPage() {
         startTime: createFormData.startTime,
         endTime: createFormData.endTime,
         description: createFormData.description.trim(),
+        totalMarks: parseInt(String(createFormData.totalMarks), 10),
         totalQuestions: 0,
-        totalMarks: 100,
         passingMarks: 40,
       };
 
@@ -159,6 +186,7 @@ export default function AdminExamsPage() {
         startTime: '',
         endTime: '',
         description: '',
+        totalMarks: 100,
       });
       handleReloadExams();
     } catch (error: any) {
@@ -227,17 +255,17 @@ export default function AdminExamsPage() {
                 </div>
               </div>
             )}
-            {/* Invite link row */}
+            {/* Course Code Copy Button */}
             <button
-              onClick={() => copyInviteLink(exam._id)}
+              onClick={() => copyCourseCode(exam.courseCode)}
               className={`w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-lg border cursor-pointer whitespace-nowrap transition-all mb-2 ${
-                copiedId === exam._id
+                copiedId === exam.courseCode
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                   : 'bg-teal-500/5 border-teal-500/20 text-teal-400 hover:bg-teal-500/10'
               }`}
             >
-              <i className={copiedId === exam._id ? 'ri-checkbox-circle-line' : 'ri-links-line'} />
-              {copiedId === exam._id ? 'Link Copied!' : 'Copy Student Invite Link'}
+              <i className={copiedId === exam.courseCode ? 'ri-checkbox-circle-line' : 'ri-key-2-line'} />
+              {copiedId === exam.courseCode ? 'Course Code Copied!' : `Copy Course Code: ${exam.courseCode}`}
             </button>
             <div className="flex items-center gap-2">
               {exam.status === 'active' && (
@@ -246,7 +274,10 @@ export default function AdminExamsPage() {
                 </button>
               )}
               <button
-                onClick={() => setEditingExamId(exam._id)}
+                onClick={() => {
+                  setEditingExamId(exam._id);
+                  setEditorRefreshKey(prev => prev + 1);
+                }}
                 className="flex-1 bg-amber-500/5 border border-amber-500/20 text-amber-400 text-xs font-semibold py-1.5 rounded-lg cursor-pointer whitespace-nowrap hover:bg-amber-500/15 transition-colors"
               >
                 <i className="ri-list-check-3 mr-1" />Questions
@@ -266,8 +297,12 @@ export default function AdminExamsPage() {
       {/* Question Editor Modal */}
       {editingExamId && (
         <ExamEditor
+          key={`${editingExamId}-${editorRefreshKey}`}
           examId={editingExamId}
-          onClose={() => setEditingExamId(null)}
+          onClose={() => {
+            setEditingExamId(null);
+            setEditorRefreshKey(prev => prev + 1);
+          }}
           onSave={handleReloadExams}
         />
       )}
@@ -325,20 +360,33 @@ export default function AdminExamsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Start Time</label>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Total Exam Marks</label>
                   <input
-                    type="time"
-                    value={editFormData.startTime}
-                    onChange={(e) => setEditFormData({ ...editFormData, startTime: e.target.value })}
+                    type="number"
+                    placeholder="100"
+                    value={editFormData.totalMarks}
+                    min="1"
+                    disabled
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-[#6b7280] text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50 cursor-not-allowed opacity-60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Start Time (12-hour)</label>
+                  <input
+                    type="text"
+                    placeholder="HH:MM AM/PM"
+                    value={formatTo12Hour(editFormData.startTime)}
+                    onChange={(e) => setEditFormData({ ...editFormData, startTime: convertTo24Hour(e.target.value) })}
                     className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">End Time</label>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">End Time (12-hour)</label>
                   <input
-                    type="time"
-                    value={editFormData.endTime}
-                    onChange={(e) => setEditFormData({ ...editFormData, endTime: e.target.value })}
+                    type="text"
+                    placeholder="HH:MM AM/PM"
+                    value={formatTo12Hour(editFormData.endTime)}
+                    onChange={(e) => setEditFormData({ ...editFormData, endTime: convertTo24Hour(e.target.value) })}
                     className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
                   />
                 </div>
@@ -421,20 +469,33 @@ export default function AdminExamsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Start Time</label>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Total Exam Marks *</label>
                   <input
-                    type="time"
-                    value={createFormData.startTime}
-                    onChange={(e) => setCreateFormData({ ...createFormData, startTime: e.target.value })}
+                    type="number"
+                    placeholder="100"
+                    value={createFormData.totalMarks}
+                    min="1"
+                    disabled
+                    className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-[#6b7280] text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50 cursor-not-allowed opacity-60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Start Time (12-hour)</label>
+                  <input
+                    type="text"
+                    placeholder="HH:MM AM/PM"
+                    value={formatTo12Hour(createFormData.startTime)}
+                    onChange={(e) => setCreateFormData({ ...createFormData, startTime: convertTo24Hour(e.target.value) })}
                     className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">End Time</label>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">End Time (12-hour)</label>
                   <input
-                    type="time"
-                    value={createFormData.endTime}
-                    onChange={(e) => setCreateFormData({ ...createFormData, endTime: e.target.value })}
+                    type="text"
+                    placeholder="HH:MM AM/PM"
+                    value={formatTo12Hour(createFormData.endTime)}
+                    onChange={(e) => setCreateFormData({ ...createFormData, endTime: convertTo24Hour(e.target.value) })}
                     className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50"
                   />
                 </div>

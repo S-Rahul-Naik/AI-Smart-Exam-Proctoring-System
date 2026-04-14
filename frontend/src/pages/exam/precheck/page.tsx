@@ -595,7 +595,7 @@ export default function PreCheckPage() {
           </div>
 
           <button
-            onClick={() => hasFailed ? retry() : allPassed ? navigate('/exam/rules') : null}
+            onClick={() => hasFailed ? retry() : allPassed ? navigate('/exam/enter-coursecode') : null}
             disabled={!allPassed && !hasFailed}
             className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${allPassed ? 'bg-teal-500 hover:bg-teal-400 text-white cursor-pointer' : hasFailed ? 'bg-red-500 hover:bg-red-400 text-white cursor-pointer' : 'bg-[#1a1d24] text-[#4b5563] cursor-not-allowed'}`}
           >

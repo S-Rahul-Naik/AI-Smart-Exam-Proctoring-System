@@ -16,6 +16,7 @@ import AdminSettingsPage from '../pages/admin/settings/page';
 import SessionReviewPage from '../pages/admin/review/page';
 import ExamJoinPage from '../pages/exam/join/page';
 import PreCheckPage from '../pages/exam/precheck/page';
+import EnterCourseCodePage from '../pages/exam/enter-coursecode/page';
 import ExamRulesPage from '../pages/exam/rules/page';
 import ExamMonitoringPage from '../pages/exam/monitoring/page';
 import ExamResultsPage from '../pages/exam/results/page';
@@ -41,6 +42,7 @@ const routes: RouteObject[] = [
   { path: '/admin/settings', element: <ProtectedRoute element={<AdminSettingsPage />} requiredRole="admin" /> },
   { path: '/exam/join', element: <ProtectedRoute element={<ExamJoinPage />} requiredRole="student" /> },
   { path: '/exam/precheck', element: <ProtectedRoute element={<PreCheckPage />} requiredRole="student" /> },
+  { path: '/exam/enter-coursecode', element: <ProtectedRoute element={<EnterCourseCodePage />} requiredRole="student" /> },
   { path: '/exam/rules', element: <ProtectedRoute element={<ExamRulesPage />} requiredRole="student" /> },
   { path: '/exam/monitoring', element: <ProtectedRoute element={<ExamMonitoringPage />} requiredRole="student" /> },
   { path: '/exam/results', element: <ProtectedRoute element={<ExamResultsPage />} requiredRole="student" /> },

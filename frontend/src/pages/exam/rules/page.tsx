@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { ExamTokenPayload } from '../../../utils/examToken';
 
 const rules = [
   { icon: 'ri-eye-line', text: 'Keep your eyes on the screen at all times during the exam.' },
@@ -15,6 +16,20 @@ const rules = [
 export default function ExamRulesPage() {
   const navigate = useNavigate();
   const [agreed, setAgreed] = useState(false);
+  const [exam, setExam] = useState<ExamTokenPayload | null>(null);
+
+  useEffect(() => {
+    // Get exam data from sessionStorage
+    const examSessionStr = sessionStorage.getItem('examSession');
+    if (examSessionStr) {
+      try {
+        const examSession = JSON.parse(examSessionStr);
+        setExam(examSession.exam);
+      } catch (error) {
+        console.error('Failed to parse exam session:', error);
+      }
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center font-['Inter',sans-serif] py-10">
@@ -45,11 +60,11 @@ export default function ExamRulesPage() {
             <div className="bg-[#0a0c10] border border-[#1e2330] rounded-xl p-5 mb-6">
               <div className="flex items-center gap-2 mb-4">
                 <i className="ri-information-line text-teal-400" />
-                <span className="text-teal-400 text-sm font-semibold">Advanced Algorithms &amp; Data Structures · CS401</span>
+                <span className="text-teal-400 text-sm font-semibold">{exam?.examTitle || 'Exam'} · {exam?.courseCode || 'N/A'}</span>
               </div>
               <div className="grid grid-cols-3 gap-3 text-xs">
-                <div className="text-center"><div className="text-white font-bold">09:00 AM</div><div className="text-[#4b5563]">Start Time</div></div>
-                <div className="text-center"><div className="text-white font-bold">3 Hours</div><div className="text-[#4b5563]">Duration</div></div>
+                <div className="text-center"><div className="text-white font-bold">{exam?.startTime || '00:00'}</div><div className="text-[#4b5563]">Start Time</div></div>
+                <div className="text-center"><div className="text-white font-bold">{exam?.duration || 0} mins</div><div className="text-[#4b5563]">Duration</div></div>
                 <div className="text-center"><div className="text-white font-bold">100 pts</div><div className="text-[#4b5563]">Total Marks</div></div>
               </div>
             </div>
@@ -79,8 +94,9 @@ export default function ExamRulesPage() {
 
             <button
               onClick={() => {
-                sessionStorage.setItem('examId', 'exam-001');
-                navigate('/exam/monitoring?examId=exam-001');
+                const examIdToUse = exam?.examId || 'exam-001';
+                sessionStorage.setItem('examId', examIdToUse);
+                navigate(`/exam/monitoring?examId=${examIdToUse}`);
               }}
               disabled={!agreed}
               className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${agreed ? 'bg-teal-500 hover:bg-teal-400 text-white cursor-pointer' : 'bg-[#1a1d24] text-[#4b5563] cursor-not-allowed'}`}
