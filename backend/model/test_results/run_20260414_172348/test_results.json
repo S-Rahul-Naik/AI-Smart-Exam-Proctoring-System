@@ -1,0 +1,10 @@
+{
+  "total_images": 322,
+  "images_with_phone": 0,
+  "images_without_phone": 0,
+  "total_detections": 0,
+  "detections_per_image": [],
+  "confidence_scores": [],
+  "inference_times": [],
+  "processing_errors": 20
+}

@@ -1,0 +1,102 @@
+[
+  {
+    "name": "0_jpg.rf.23fff2c79b8023acd3b4048b61622386.jpg",
+    "detections": 2,
+    "inference_time": 72.93339999159798
+  },
+  {
+    "name": "106-1062438_iphone-5c-mock-up-iphone-on-table-png_png_jpg.rf.c93051230a732a6f3fc3a352cee715d4.jpg",
+    "detections": 1,
+    "inference_time": 64.12369996542111
+  },
+  {
+    "name": "10_jpg.rf.bb8cb8f168ec13f2dc4b291b48fe9ab6.jpg",
+    "detections": 0,
+    "inference_time": 69.29240003228188
+  },
+  {
+    "name": "124_jpg.rf.ff8a3d7d8c703d50c4fcf51f40b5dc58.jpg",
+    "detections": 1,
+    "inference_time": 70.50640002125874
+  },
+  {
+    "name": "1292_jpg.rf.357935070ca565b02785dc4cb09bc637.jpg",
+    "detections": 3,
+    "inference_time": 67.7746000001207
+  },
+  {
+    "name": "1327_jpg.rf.0af0033fbcdbb229958d195e935610f1.jpg",
+    "detections": 1,
+    "inference_time": 59.32210001628846
+  },
+  {
+    "name": "1332_jpg.rf.103ec6e97844f995b7a31500a78f936a.jpg",
+    "detections": 2,
+    "inference_time": 62.39909998839721
+  },
+  {
+    "name": "1392_jpg.rf.58986b105ae293c2dd26668fa9ec8cce.jpg",
+    "detections": 1,
+    "inference_time": 63.68419999489561
+  },
+  {
+    "name": "1423_jpg.rf.d7028386bd771aefc7706bf5cf66d93a.jpg",
+    "detections": 2,
+    "inference_time": 59.36170002678409
+  },
+  {
+    "name": "15_jpg.rf.0e8a6ec72835fedceef4545bbb8a39b5.jpg",
+    "detections": 0,
+    "inference_time": 59.5960000064224
+  },
+  {
+    "name": "15_jpg.rf.1e4e60dac88075ed82d7b2cad3738491.jpg",
+    "detections": 2,
+    "inference_time": 62.59079999290407
+  },
+  {
+    "name": "16_jpg.rf.027689e6d9d028d459c6257050f36607.jpg",
+    "detections": 0,
+    "inference_time": 62.20919999759644
+  },
+  {
+    "name": "21_jpg.rf.438a2bbe81249cc0e84a71040b9a188f.jpg",
+    "detections": 0,
+    "inference_time": 58.573000016622245
+  },
+  {
+    "name": "275FDA47592359A808_jpeg_jpg.rf.cc6498d6f14caaa3056237e947c31a03.jpg",
+    "detections": 3,
+    "inference_time": 56.80589994881302
+  },
+  {
+    "name": "2_jpg.rf.eb375444917ed15b17bd9ceab132fe65.jpg",
+    "detections": 3,
+    "inference_time": 65.11119997594506
+  },
+  {
+    "name": "3000_jpg.rf.17d58e66fa6a9e776d2e485a71f7132e.jpg",
+    "detections": 3,
+    "inference_time": 66.37619994580746
+  },
+  {
+    "name": "30_jpg.rf.9b5468a9f8fc6a5b63154c48eece9829.jpg",
+    "detections": 1,
+    "inference_time": 66.93939998513088
+  },
+  {
+    "name": "35_jpg.rf.f9d3ce798499fa303a86985fa786e6b4.jpg",
+    "detections": 1,
+    "inference_time": 67.18589999945834
+  },
+  {
+    "name": "44_jpg.rf.0c43bed697b5efdd6ed0bb8c1da575f1.jpg",
+    "detections": 3,
+    "inference_time": 66.73979997867718
+  },
+  {
+    "name": "46_jpg.rf.e2c82e89d25496fa447dcd294a2305ee.jpg",
+    "detections": 1,
+    "inference_time": 67.96729995403439
+  }
+]

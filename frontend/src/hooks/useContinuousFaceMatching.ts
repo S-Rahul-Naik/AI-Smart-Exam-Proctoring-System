@@ -287,7 +287,15 @@ export function useContinuousFaceMatching(
               newState.matchStatus = 'mismatch';
               newState.matchScore = Math.round(result.matchConfidence);
               alert = `❌ Face match performed: {confidence: ${Math.round(result.matchConfidence)}%, isSamePerson: false}`;
-              console.warn(alert);
+              // Highlight console error with styling
+              console.error(
+                '%c⚠️ FACE MISMATCH - AUTHENTICATION FAILED',
+                'background: #ff4444; color: white; font-weight: bold; font-size: 14px; padding: 8px; border-radius: 3px;'
+              );
+              console.error(
+                '%cConfidence: ' + Math.round(result.matchConfidence) + '%',
+                'background: #ff6666; color: white; font-weight: bold; padding: 5px;'
+              );
 
               // Suspicious after 2+ consecutive mismatches
               if (newState.consecutiveMismatches >= 2) {
