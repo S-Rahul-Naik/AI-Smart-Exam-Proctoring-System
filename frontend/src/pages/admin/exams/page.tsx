@@ -1,17 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLayout from '../../../components/feature/AdminLayout';
 import StatusBadge from '../../../components/base/StatusBadge';
-import { mockExams } from '../../../mocks/exams';
 import { getDemoToken } from '../../../utils/examToken';
-import QuestionIntegrityList from './components/QuestionIntegrityList';
+import ExamEditor from './components/ExamEditor';
+import { examAPI } from '../../../services/api';
 
 export default function AdminExamsPage() {
+  const [exams, setExams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [questionExam, setQuestionExam] = useState<{ id: string; name: string } | null>(null);
+  const [editingExamId, setEditingExamId] = useState<string | null>(null);
 
-  const filtered = mockExams.filter(e =>
+  // Fetch exams from API
+  useEffect(() => {
+    const fetchExams = async () => {
+      try {
+        setLoading(true);
+        const response = await examAPI.getExams();
+        setExams(response.data || []);
+      } catch (error) {
+        console.error('Failed to fetch exams:', error);
+        setExams([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExams();
+  }, []);
+
+  const filtered = exams.filter(e =>
     e.title.toLowerCase().includes(search.toLowerCase()) || e.courseCode.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -23,6 +43,15 @@ export default function AdminExamsPage() {
       setTimeout(() => setCopiedId(null), 2000);
     });
   }
+
+  const handleReloadExams = async () => {
+    try {
+      const response = await examAPI.getExams();
+      setExams(response.data || []);
+    } catch (error) {
+      console.error('Failed to reload exams:', error);
+    }
+  };
 
   return (
     <AdminLayout title="Exam Management" subtitle="Create, schedule, and manage all proctored exams">
@@ -46,7 +75,16 @@ export default function AdminExamsPage() {
       </div>
 
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {filtered.map(exam => (
+        {loading ? (
+          <div className="col-span-full flex items-center justify-center py-12">
+            <p className="text-[#6b7280]">Loading exams...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="col-span-full flex items-center justify-center py-12">
+            <p className="text-[#6b7280]">{search ? 'No exams found' : 'No exams yet. Create one to get started!'}</p>
+          </div>
+        ) : (
+          filtered.map(exam => (
           <div key={exam.id} className="bg-[#111318] border border-[#1e2330] rounded-xl p-5 hover:border-teal-500/20 transition-all">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="flex-1 min-w-0">
@@ -82,15 +120,15 @@ export default function AdminExamsPage() {
             )}
             {/* Invite link row */}
             <button
-              onClick={() => copyInviteLink(exam.id)}
+              onClick={() => copyInviteLink(exam._id)}
               className={`w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-lg border cursor-pointer whitespace-nowrap transition-all mb-2 ${
-                copiedId === exam.id
+                copiedId === exam._id
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                   : 'bg-teal-500/5 border-teal-500/20 text-teal-400 hover:bg-teal-500/10'
               }`}
             >
-              <i className={copiedId === exam.id ? 'ri-checkbox-circle-line' : 'ri-links-line'} />
-              {copiedId === exam.id ? 'Link Copied!' : 'Copy Student Invite Link'}
+              <i className={copiedId === exam._id ? 'ri-checkbox-circle-line' : 'ri-links-line'} />
+              {copiedId === exam._id ? 'Link Copied!' : 'Copy Student Invite Link'}
             </button>
             <div className="flex items-center gap-2">
               {exam.status === 'active' && (
@@ -99,7 +137,7 @@ export default function AdminExamsPage() {
                 </button>
               )}
               <button
-                onClick={() => setQuestionExam({ id: exam.id, name: exam.title })}
+                onClick={() => setEditingExamId(exam._id)}
                 className="flex-1 bg-amber-500/5 border border-amber-500/20 text-amber-400 text-xs font-semibold py-1.5 rounded-lg cursor-pointer whitespace-nowrap hover:bg-amber-500/15 transition-colors"
               >
                 <i className="ri-list-check-3 mr-1" />Questions
@@ -109,14 +147,16 @@ export default function AdminExamsPage() {
               </button>
             </div>
           </div>
-        ))}
+        ))
+        )}
       </div>
 
-      {/* Question Integrity Modal */}
-      {questionExam && (
-        <QuestionIntegrityList
-          examName={questionExam.name}
-          onClose={() => setQuestionExam(null)}
+      {/* Question Editor Modal */}
+      {editingExamId && (
+        <ExamEditor
+          examId={editingExamId}
+          onClose={() => setEditingExamId(null)}
+          onSave={handleReloadExams}
         />
       )}
 

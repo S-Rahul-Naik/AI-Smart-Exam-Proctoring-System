@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import studentRoutes from './routes/studentRoutes.js';
 import examRoutes from './routes/examRoutes.js';
+import questionsRoutes from './routes/questionsRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import alertRoutes from './routes/alertRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
@@ -43,6 +44,7 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/students', studentRoutes);
 app.use('/api/exams', examRoutes);
+app.use('/api/exams', questionsRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/admins', adminRoutes);

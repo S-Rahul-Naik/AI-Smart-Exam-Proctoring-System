@@ -104,6 +104,28 @@ export const examAPI = {
 
   deleteExam: (id: string) =>
     apiClient.delete(`/exams/${id}`),
+
+  // Question management
+  getExamQuestions: (examId: string) =>
+    apiClient.get(`/exams/${examId}/questions`),
+
+  createQuestion: (examId: string, data: any) =>
+    apiClient.post(`/exams/${examId}/questions`, data),
+
+  updateQuestion: (examId: string, questionId: string, data: any) =>
+    apiClient.put(`/exams/${examId}/questions/${questionId}`, data),
+
+  deleteQuestion: (examId: string, questionId: string) =>
+    apiClient.delete(`/exams/${examId}/questions/${questionId}`),
+
+  bulkAddQuestions: (examId: string, questions: any[]) =>
+    apiClient.post(`/exams/${examId}/questions/bulk`, { questions }),
+
+  reorderQuestions: (examId: string, questionIds: string[]) =>
+    apiClient.post(`/exams/${examId}/questions/reorder`, { questionIds }),
+
+  getQuestionStats: (examId: string) =>
+    apiClient.get(`/exams/${examId}/questions/stats`),
 };
 
 // ==================== SESSION API ====================

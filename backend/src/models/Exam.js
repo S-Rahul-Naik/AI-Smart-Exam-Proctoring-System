@@ -67,6 +67,12 @@ const examSchema = new mongoose.Schema(
         ref: 'Student',
       },
     ],
+    questions: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Question',
+      },
+    ],
     sessions: [
       {
         type: mongoose.Schema.Types.ObjectId,
