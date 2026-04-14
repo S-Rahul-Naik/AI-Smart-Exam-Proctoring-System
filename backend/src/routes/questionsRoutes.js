@@ -12,24 +12,24 @@ import {
 const router = express.Router({ mergeParams: true });
 
 // Get all questions for an exam
-router.get('/exams/:examId/questions', getExamQuestions);
+router.get('/:examId/questions', getExamQuestions);
 
 // Get question statistics
-router.get('/exams/:examId/questions/stats', getQuestionStats);
+router.get('/:examId/questions/stats', getQuestionStats);
 
 // Create a new question
-router.post('/exams/:examId/questions', createQuestion);
+router.post('/:examId/questions', createQuestion);
 
 // Bulk add questions
-router.post('/exams/:examId/questions/bulk', bulkAddQuestions);
+router.post('/:examId/questions/bulk', bulkAddQuestions);
 
 // Update a question
-router.put('/exams/:examId/questions/:questionId', updateQuestion);
+router.put('/:examId/questions/:questionId', updateQuestion);
 
 // Delete a question
-router.delete('/exams/:examId/questions/:questionId', deleteQuestion);
+router.delete('/:examId/questions/:questionId', deleteQuestion);
 
 // Reorder questions
-router.post('/exams/:examId/questions/reorder', reorderQuestions);
+router.post('/:examId/questions/reorder', reorderQuestions);
 
 export default router;
