@@ -1,4 +1,5 @@
 import axios from 'axios';
+import logger from '../utils/logger.js';
 
 export const detectPhone = async (imageBuffer) => {
   try {
@@ -21,7 +22,7 @@ export const detectPhone = async (imageBuffer) => {
       predictions: response.data.predictions || [],
     };
   } catch (error) {
-    console.error('Phone detection error:', error);
+    logger.error('Phone Detection', error.message);
     return { detected: false, error: error.message };
   }
 };
@@ -29,9 +30,11 @@ export const detectPhone = async (imageBuffer) => {
 export const sendAlertNotification = async (adminEmail, alertData) => {
   try {
     // Integrate with email service (Nodemailer, SendGrid, etc.)
-    console.log(`Alert notification sent to ${adminEmail}:`, alertData);
+    if (process.env.VERBOSE_DEBUG === 'true') {
+      logger.success('Alert', `Notification sent to ${adminEmail}`);
+    }
     // Email sending logic here
   } catch (error) {
-    console.error('Notification error:', error);
+    logger.error('Alert Notification', error.message);
   }
 };

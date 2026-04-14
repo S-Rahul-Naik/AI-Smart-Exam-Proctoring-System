@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import logger from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -238,8 +239,6 @@ export async function compareFacesPython(livePhotoBase64, enrollmentPhotoUrl) {
 
   return new Promise(async (resolve) => {
     try {
-      console.log('🧠 [Exam Face Match] Comparing live face with enrollment photo...');
-      
       // Ensure temp directory exists
       if (!fs.default.existsSync(tmpDir)) {
         fs.default.mkdirSync(tmpDir, { recursive: true });
@@ -248,7 +247,6 @@ export async function compareFacesPython(livePhotoBase64, enrollmentPhotoUrl) {
       // Decode base64 and write to temp file
       const buffer = Buffer.from(livePhotoBase64.replace(/^data:image\/(jpeg|jpg|png);base64,/, ''), 'base64');
       fs.default.writeFileSync(tmpFile, buffer);
-      console.log(`   ✅ Saved live face to temporary file: ${tmpFile} (${buffer.length} bytes)`);
 
       // Python script for exam face comparison
       const examComparisonScript = `

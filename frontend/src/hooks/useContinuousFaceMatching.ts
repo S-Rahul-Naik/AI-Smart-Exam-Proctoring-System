@@ -60,7 +60,6 @@ export function useContinuousFaceMatching(
       canvas.style.display = 'none'; // Hide from view
       document.body.appendChild(canvas);
       canvasRef.current = canvas;
-      console.log('[Face Match] Canvas element created and attached to DOM');
     }
 
     return () => {
@@ -68,7 +67,6 @@ export function useContinuousFaceMatching(
       if (canvasRef.current && canvasRef.current.parentNode) {
         canvasRef.current.parentNode.removeChild(canvasRef.current);
         canvasRef.current = null;
-        console.log('[Face Match] Canvas element removed from DOM');
       }
     };
   }, []);
@@ -78,10 +76,6 @@ export function useContinuousFaceMatching(
    */
   const captureFrame = useCallback((): string | null => {
     if (!videoRef.current || !canvasRef.current) {
-      console.debug('[Face Match Check] ❌ Missing refs:', {
-        hasVideoRef: !!videoRef.current,
-        hasCanvasRef: !!canvasRef.current,
-      });
       return null;
     }
 
@@ -92,83 +86,43 @@ export function useContinuousFaceMatching(
     const hasData = readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
     const hasSrcObject = !!video.srcObject;
 
-    console.log('[Face Match Check] Video state check:', {
-      readyState,
-      'HAVE_NOTHING': 0,
-      'HAVE_METADATA': 1,
-      'HAVE_CURRENT_DATA': 2,
-      'expected': 2,
-      videoWidth,
-      videoHeight,
-      hasData,
-      hasSrcObject,
-      paused: video.paused,
-      muted: video.muted,
-      networkState: video.networkState,
-    });
-
     // Check if video has source
     if (!hasSrcObject) {
-      console.warn('[Face Match Check] ⏳ No srcObject assigned to video yet - stream not started');
       return null;
     }
 
     // Check if video is ready and has dimensions
-    if (!hasData) {
-      console.warn('[Face Match Check] ⏳ Video NOT ready - readyState:', readyState, '(need 2, have', readyState + ')');
-      return null;
-    }
-
-    if (!videoWidth || !videoHeight) {
-      console.warn('[Face Match Check] ⏳ Video has NO dimensions:', {
-        videoWidth,
-        videoHeight,
-      });
+    if (!hasData || !videoWidth || !videoHeight) {
       return null;
     }
 
     try {
-      console.log('[Face Match Check] Step 1: Getting canvas context...');
       const ctx = canvasRef.current.getContext('2d');
       if (!ctx) {
-        console.error('[Face Match Check] ❌ Step 1 FAILED: Cannot get canvas context');
         return null;
       }
-      console.log('[Face Match Check] ✅ Step 1: Canvas context obtained');
 
-      console.log('[Face Match Check] Step 2: Setting canvas dimensions (256x192)...');
       canvasRef.current.width = 256;
       canvasRef.current.height = 192;
-      console.log('[Face Match Check] ✅ Step 2: Canvas dimensions set');
 
-      console.log('[Face Match Check] Step 3: Drawing video frame to canvas...');
       try {
         ctx.drawImage(video, 0, 0, 256, 192);
-        console.log('[Face Match Check] ✅ Step 3: Frame drawn to canvas');
       } catch (drawError) {
-        console.error('[Face Match Check] ❌ Step 3 FAILED: drawImage error:', drawError);
         return null;
       }
 
-      console.log('[Face Match Check] Step 4: Converting canvas to JPEG data URL...');
       let frameData;
       try {
         frameData = canvasRef.current.toDataURL('image/jpeg', 0.80);
-        console.log('[Face Match Check] ✅ Step 4: Canvas converted to data URL');
       } catch (convertError) {
-        console.error('[Face Match Check] ❌ Step 4 FAILED: toDataURL error:', convertError);
         return null;
       }
 
-      console.log('[Face Match Check] ✅ Frame captured successfully:', {
-        frameSize: frameData.length,
-        videoState: video.readyState,
-        width: videoWidth,
-        height: videoHeight,
-      });
       return frameData;
     } catch (error) {
-      console.error('[Face Match Check] ❌ Unexpected error during frame capture:', error);
+      if (process.env.REACT_APP_VERBOSE_DEBUG === 'true') {
+        console.error('Error during frame capture:', error);
+      }
       return null;
     }
   }, [videoRef]);
@@ -177,25 +131,11 @@ export function useContinuousFaceMatching(
    * Perform face matching check
    */
   const performFaceMatch = useCallback(async () => {
-    console.log('[Face Match Check] Pre-check conditions:', {
-      enabled,
-      hasEnrollmentPhoto: !!enrollmentPhotoUrl,
-      hasVideoRef: !!videoRef.current,
-      videoRefReady: videoRef.current ? videoRef.current.readyState : 'null',
-      videoRefHasSrcObject: videoRef.current ? !!videoRef.current.srcObject : 'null',
-    });
-
     if (!enabled || !enrollmentPhotoUrl || !videoRef.current) {
-      console.warn('[Face Match Check] ⛔ Conditions not met, skipping check:', {
-        enabled,
-        enrollmentPhotoUrl: enrollmentPhotoUrl ? '(URL present)' : 'MISSING',
-        videoRef: videoRef.current ? '(ref present)' : 'MISSING',
-      });
       return;
     }
 
     const checkStartTime = Date.now();
-    console.log(`[Face Match Check] Starting face match verification...`);
 
     try {
       setState(prev => ({ ...prev, matchStatus: 'checking' }));
@@ -240,13 +180,6 @@ export function useContinuousFaceMatching(
         timestamp: Date.now(),
       };
 
-      console.log('[Face Match Check] 📥 Backend response received:', {
-        confidence: result.matchConfidence,
-        faceDetected: result.faceDetected,
-        faceCount: result.faceCount,
-        isSamePerson: result.isSamePerson,
-      });
-
       matchHistoryRef.current.push(result);
       // Keep only last 10 matches
       if (matchHistoryRef.current.length > 10) {
@@ -281,21 +214,15 @@ export function useContinuousFaceMatching(
               newState.matchScore = Math.round(result.matchConfidence);
               newState.consecutiveMismatches = 0;
               newState.lastMatchPhoto = frame;
-              console.log(`✅ Face match performed: {confidence: ${Math.round(result.matchConfidence)}%, isSamePerson: true}`);
             } else {
               newState.consecutiveMismatches += 1;
               newState.matchStatus = 'mismatch';
               newState.matchScore = Math.round(result.matchConfidence);
-              alert = `❌ Face match performed: {confidence: ${Math.round(result.matchConfidence)}%, isSamePerson: false}`;
-              // Highlight console error with styling
               console.error(
                 '%c⚠️ FACE MISMATCH - AUTHENTICATION FAILED',
                 'background: #ff4444; color: white; font-weight: bold; font-size: 14px; padding: 8px; border-radius: 3px;'
               );
-              console.error(
-                '%cConfidence: ' + Math.round(result.matchConfidence) + '%',
-                'background: #ff6666; color: white; font-weight: bold; padding: 5px;'
-              );
+              console.error('%cConfidence: ' + Math.round(result.matchConfidence) + '%', 'background: #ff6666; color: white; font-weight: bold; padding: 5px;');
 
               // Suspicious after 2+ consecutive mismatches
               if (newState.consecutiveMismatches >= 2) {
@@ -306,20 +233,17 @@ export function useContinuousFaceMatching(
           }
         }
 
-        const checkDuration = Date.now() - checkStartTime;
-        console.log(`[Face Match Check] ✓ Completed in ${checkDuration}ms`);
-
         newState.lastMatchTime = Date.now();
         return newState;
       });
 
     } catch (error: any) {
-      const checkDuration = Date.now() - checkStartTime;
-      console.error(`❌ Face matching error (${checkDuration}ms):`, {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
+      if (process.env.REACT_APP_VERBOSE_DEBUG === 'true') {
+        console.error('Face matching error:', {
+          message: error.message,
+          status: error.response?.status,
+        });
+      }
       setState(prev => ({
         ...prev,
         matchStatus: 'error',
@@ -332,28 +256,16 @@ export function useContinuousFaceMatching(
    */
   const startMatching = useCallback(() => {
     if (!enabled || !enrollmentPhotoUrl) {
-      console.warn('⚠️ Continuous face matching NOT enabled:', {
-        enabled,
-        hasEnrollmentPhoto: !!enrollmentPhotoUrl,
-      });
       return;
     }
 
-    console.log('🔍 Starting continuous face matching (every 30s)', {
-      enabled,
-      hasEnrollmentPhoto: !!enrollmentPhotoUrl,
-      enrollmentPhotoUrl: enrollmentPhotoUrl?.substring(0, 50) + '...',
-      interval: checkIntervalMs + 'ms',
-    });
     setState(prev => ({ ...prev, isActive: true }));
 
     // Perform first check immediately
-    console.log('[Face Match] Performing initial check...');
     performFaceMatch();
 
     // Then set up interval
     intervalRef.current = setInterval(() => {
-      console.log('[Face Match] Executing scheduled 30s interval check...');
       performFaceMatch();
     }, checkIntervalMs);
   }, [enabled, enrollmentPhotoUrl, performFaceMatch, checkIntervalMs]);
@@ -362,7 +274,6 @@ export function useContinuousFaceMatching(
    * Stop matching
    */
   const stopMatching = useCallback(() => {
-    console.log('🛑 Stopping continuous face matching');
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }

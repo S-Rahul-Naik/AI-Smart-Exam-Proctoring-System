@@ -4,6 +4,7 @@ import Student from '../models/Student.js';
 import Alert from '../models/Alert.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
 import { monitoringService } from '../services/monitoringService.js';
+import logger from '../utils/logger.js';
 
 // Event weights for the malpractice report
 const EVENT_WEIGHTS = {
@@ -305,21 +306,15 @@ export const uploadSnapshot = async (req, res, next) => {
     const { eventType } = req.body;
     const file = req.file;
 
-    console.log('📸 Snapshot upload request:', {
-      sessionId,
-      eventType,
-      fileSize: file?.size,
-      fileName: file?.originalname,
-    });
-
     if (!file) {
-      console.error('❌ No file provided in snapshot upload');
+      logger.error('Upload Error', 'No file provided in snapshot upload');
       return res.status(400).json({ error: 'No file provided' });
     }
 
     // Find session first
     const session = await Session.findById(sessionId);
     if (!session) {
+      logger.error('Upload Error', 'Session not found', sessionId);
       return res.status(404).json({ error: 'Session not found' });
     }
 
@@ -380,10 +375,10 @@ export const uploadSnapshot = async (req, res, next) => {
             snapshot.cloudinaryPending = false;
             snapshot.stored = 'cloudinary';
             await session.save();
-            console.log('✅ Snapshot uploaded to Cloudinary (background):', uploadResult.secure_url);
+            logger.snapshot('upload', eventType, file.size, 'Cloudinary success');
           }
         } catch (error) {
-          console.warn('⚠️ Cloudinary upload failed:', error.message);
+          logger.warn('Cloud Upload Failed', error.message);
           // Keep local copy - Cloudinary failure is not critical
           // Snapshots are safely stored in MongoDB
         }
@@ -392,14 +387,14 @@ export const uploadSnapshot = async (req, res, next) => {
       // Start processing queue asynchronously
       setImmediate(() => processUploadQueue());
     } else {
-      console.log('💾 Cloudinary disabled in .env - snapshot stored locally in MongoDB');
+      logger.snapshot('save', eventType, file.size, 'Local storage (Cloudinary disabled)');
     }
 
     // Start processing queue asynchronously
     setImmediate(() => processUploadQueue());
 
   } catch (error) {
-    console.error('❌ Snapshot upload error:', error.message);
+    logger.error('Upload Error', error.message);
     next(error);
   }
 };

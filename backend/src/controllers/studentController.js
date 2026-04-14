@@ -1,6 +1,7 @@
 import Student from '../models/Student.js';
 import jwt from 'jsonwebtoken';
 import { uploadFaceImage, deleteFaceImage } from '../services/cloudinaryService.js';
+import logger from '../utils/logger.js';
 
 export const registerStudent = async (req, res, next) => {
   try {
@@ -268,11 +269,13 @@ export const matchFaceForExam = async (req, res, next) => {
     const { livePhoto, enrollmentPhotoUrl, photoType = 'login' } = req.body;
     const studentId = req.user.id;
 
-    console.log(`\n🔍 [Face Match] Starting face match for student ${studentId}`);
-    console.log(`   Live photo size: ${livePhoto ? livePhoto.length : 'MISSING'} bytes`);
-    console.log(`   Enrollment photo URL: ${enrollmentPhotoUrl ? enrollmentPhotoUrl.substring(0, 50) + '...' : 'MISSING'}`);
+    logger.faceMatch('start', studentId.substring(0, 8) + '...', {
+      liveSize: livePhoto ? `${livePhoto.length} bytes` : 'MISSING',
+      enrollmentUrl: enrollmentPhotoUrl ? 'provided' : 'MISSING'
+    });
 
     if (!livePhoto || !enrollmentPhotoUrl) {
+      logger.warn('Face Match Failed', 'Missing photo data');
       return res.status(400).json({ 
         error: 'livePhoto and enrollmentPhotoUrl are required' 
       });
@@ -280,21 +283,21 @@ export const matchFaceForExam = async (req, res, next) => {
 
     try {
       // Call ArcFace service (similar to precheck)
-      console.log(`   📤 Calling compareFacesPython service...`);
       const deepfaceModule = await import('../utils/deepfaceVerification.js');
       const comparison = await deepfaceModule.compareFacesPython(
         livePhoto,
         enrollmentPhotoUrl
       );
 
-      console.log(`   ✅ Comparison succeeded`);
-      console.log(`   Response:`, comparison);
-
       const matchConfidence = comparison.similarity || 0;
       const isSamePerson = comparison.isSamePerson || false;
 
-      console.log(`   ✅ Match confidence: ${matchConfidence}%`);
-      console.log(`   ✅ Same person: ${isSamePerson}`);
+      // Log result only (not intermediate steps)
+      if (isSamePerson) {
+        logger.success('Face Match', `${matchConfidence}% verified`, { match: 'YES', distance: comparison.distance });
+      } else {
+        logger.warn('Face Mismatch', `${matchConfidence}% similarity`, { match: 'NO', distance: comparison.distance });
+      }
 
       // Detect face count in live photo
       let faceCount = 1;
@@ -302,9 +305,9 @@ export const matchFaceForExam = async (req, res, next) => {
         const mp = await import('@mediapipe/tasks-vision');
         // Note: This is a simplified check; full detection happens on frontend
         // But we can estimate based on face comparison success
-        console.log(`   Face detection: 1 face identified in live photo`);
+        logger.success('Face Detection', '1 face identified in live photo');
       } catch (e) {
-        console.log(`   Face count detection via backend: skipped`);
+        logger.info('Face Detection', 'Backend detection skipped');
       }
 
       res.json({
@@ -321,14 +324,10 @@ export const matchFaceForExam = async (req, res, next) => {
       });
 
     } catch (arcfaceError) {
-      console.error('\n❌ [Face Match] ArcFace comparison FAILED');
-      console.error('   Error name:', arcfaceError.name);
-      console.error('   Error message:', arcfaceError.message);
-      console.error('   Error stack:', arcfaceError.stack);
-      if (arcfaceError.response) {
-        console.error('   Response status:', arcfaceError.response.status);
-        console.error('   Response data:', arcfaceError.response.data);
-      }
+      logger.error('ArcFace Comparison Failed', arcfaceError.message, {
+        errorName: arcfaceError.name,
+        ...(arcfaceError.response && { responseStatus: arcfaceError.response.status })
+      });
       
       // Fallback: Return error but with useful info
       res.status(500).json({
@@ -340,10 +339,9 @@ export const matchFaceForExam = async (req, res, next) => {
       });
     }
   } catch (error) {
-    console.error('\n❌ [Face Match] Unexpected error:');
-    console.error('   Error name:', error.name);
-    console.error('   Error message:', error.message);
-    console.error('   Error stack:', error.stack);
+    logger.error('Face Match Unexpected Error', error.message, {
+      errorName: error.name
+    });
     res.status(500).json({
       success: false,
       error: error.message || 'Internal server error'

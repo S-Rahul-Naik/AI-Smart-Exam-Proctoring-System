@@ -154,22 +154,15 @@ export default function ExamMonitoringPage() {
   useEffect(() => {
     const loadEnrollmentPhotos = async () => {
       try {
-        console.log('📸 Loading enrollment photos for face matching...');
         const response = await studentAPI.getEnrollmentPhotos();
-        console.log('📸 Enrollment photos response:', {
-          hasLoginPhoto: !!response.data?.loginPhoto,
-          hasSignupPhoto: !!response.data?.signupPhoto,
-          data: response.data,
-        });
         const photoUrl = response.data?.loginPhoto || response.data?.signupPhoto;
         if (photoUrl) {
           setEnrollmentPhotoUrl(photoUrl);
-          console.log('✅ Enrollment photo loaded for exam start verification. Photo URL length:', photoUrl.length);
-        } else {
-          console.warn('⚠️ No enrollment photo found in response');
         }
       } catch (error) {
-        console.warn('⚠️ Could not load enrollment photo:', error);
+        if (process.env.REACT_APP_VERBOSE_DEBUG === 'true') {
+          console.warn('Could not load enrollment photo:', error);
+        }
       }
     };
     
@@ -187,7 +180,6 @@ export default function ExamMonitoringPage() {
     // Auto-advance verification since modal is hidden (background verification not yet enabled)
     // This allows the student to proceed with the exam immediately
     setTimeout(() => {
-      console.log('✅ Verification step auto-advanced to verified');
       setVerificationStep('verified');
     }, 500);
   }, [examStarted, enrollmentPhotoUrl]);
@@ -364,25 +356,18 @@ export default function ExamMonitoringPage() {
         // Fetch the snapshot (either from data URL or regular URL)
         const response = await fetch(snapshotUrl);
         if (!response.ok) {
-          console.warn(`⚠️ Failed to fetch snapshot: ${response.status}`);
           return;
         }
 
         const blob = await response.blob();
         const file = new File([blob], `snapshot-${Date.now()}.jpg`, { type: 'image/jpeg' });
-        
-        console.log('🚀 Uploading snapshot to backend:', {
-          fileSize: `${(file.size / 1024).toFixed(2)} KB`,
-          reason: snapshot.reason,
-        });
 
         // Use snapshot reason as event type
         const uploadResponse = await sessionAPI.uploadSnapshot(sessionId, file, snapshot.reason || 'snapshot');
-        console.log('✅ Snapshot queued for upload:', uploadResponse.data?.message);
       } catch (error) {
-        console.warn('⚠️ Snapshot upload attempt failed (non-critical):', {
-          message: error instanceof Error ? error.message : String(error),
-        });
+        if (process.env.REACT_APP_VERBOSE_DEBUG === 'true') {
+          console.warn('Snapshot upload failed:', error instanceof Error ? error.message : String(error));
+        }
         // Non-critical - don't block exam for snapshot failures
       }
     });

@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { detectPhoneYOLO, detectPhoneFromFile } from '../services/yoloPhoneDetectionService.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -46,12 +47,14 @@ router.post('/phone', optionalAuth, async (req, res) => {
       });
     }
 
-    console.log(`📱 Detecting phone in image${sessionId ? ` (Session: ${sessionId})` : ''}...`);
+    logger.subsection(`Phone Detection ${sessionId ? `(Session: ${sessionId.substring(0, 8)}...)` : ''}`);
 
     const result = await detectPhoneYOLO(image);
 
     if (result.detected) {
-      console.log(`✅ PHONE DETECTED! Confidence: ${result.confidence}%, Count: ${result.count}`);
+      logger.event('phone_detected', result.count, result.confidence);
+    } else {
+      logger.success('Detection Complete', 'No phone detected');
     }
 
     res.json({
@@ -59,7 +62,7 @@ router.post('/phone', optionalAuth, async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('Phone detection error:', error);
+    logger.error('Detection Error', error.message);
     res.status(500).json({
       success: false,
       error: error.message

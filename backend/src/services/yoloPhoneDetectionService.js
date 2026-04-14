@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import logger from '../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const YOLO_SCRIPT = path.join(__dirname, 'yoloPhoneDetection.py');
@@ -18,7 +19,7 @@ const PYTHON_EXECUTABLE = path.join(
   '../../../.venv/Scripts/python.exe'
 );
 
-console.log(`🐍 YOLO Python executable: ${PYTHON_EXECUTABLE}`);
+logger.info('YOLO Service Initialized', `Python executable ready at venv`);
 
 /**
  * Detect phone in base64-encoded image
@@ -33,13 +34,13 @@ export async function detectPhoneYOLO(imageBase64) {
     try {
       // Log the image data for debugging
       const imageSizeKB = (imageBase64.length / 1024).toFixed(2);
-      console.log(`📦 Image size: ${imageSizeKB} KB`);
+      logger.imageProcess('receive', imageSizeKB);
 
       // Use temp file instead of command line to avoid Windows argument length limits
       const tempDir = os.tmpdir();
       tempFile = path.join(tempDir, `frame_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.b64`);
       
-      console.log(`📝 Writing image to temp file: ${tempFile}`);
+      logger.imageProcess('encode', imageBase64.length, tempFile);
       fs.writeFileSync(tempFile, imageBase64, 'utf8');
 
       const python = spawn(PYTHON_EXECUTABLE, [YOLO_SCRIPT, '--file', tempFile], {
@@ -50,21 +51,21 @@ export async function detectPhoneYOLO(imageBase64) {
       let stderr = '';
 
       python.on('spawn', () => {
-        console.log('✅ Python process spawned');
+        logger.pythonProcess('spawn', 'Detection model initialized');
       });
 
       python.stdout.on('data', (data) => {
         const chunk = data.toString();
-        console.log(`📤 Python stdout received: ${chunk.length} bytes`);
-        if (chunk.length < 300) {
-          console.log(`   Content preview: ${chunk}`);
-        }
+        logger.pythonProcess('output', `Received ${chunk.length} bytes`);
         stdout += chunk;
       });
 
       python.stderr.on('data', (data) => {
         const chunk = data.toString();
-        console.log(`⚠️ Python stderr: ${chunk.substring(0, 150)}`);
+        // Only log stderr if VERBOSE_DEBUG is enabled
+        if (process.env.VERBOSE_DEBUG === 'true') {
+          logger.debug('YOLO stderr', chunk.substring(0, 150));
+        }
         stderr += chunk;
       });
 
@@ -77,17 +78,17 @@ export async function detectPhoneYOLO(imageBase64) {
         if (tempFile) {
           try {
             fs.unlinkSync(tempFile);
-            console.log(`🗑️ Temp file cleaned up`);
+            logger.imageProcess('cleanup', 'temp file removed');
           } catch (e) {
-            console.error(`Failed to clean up temp file: ${e.message}`);
+            logger.warn('Cleanup Failed', `Could not remove temp file: ${e.message}`);
           }
         }
 
-        console.log(`🔌 Process closed. Code: ${code}, stdout: ${stdout.length}B, stderr: ${stderr.length}B`);
+        logger.pythonProcess('complete', `Process exited with code ${code}`);
         
         // Handle timeout and null exit codes
         if (code === null) {
-          console.warn('⚠️ YOLO timed out');
+          logger.warn('Timeout', 'YOLO process exceeded timeout limit');
           return resolve({
             detected: false,
             confidence: 0,
@@ -98,8 +99,7 @@ export async function detectPhoneYOLO(imageBase64) {
         }
 
         if (code !== 0) {
-          console.error(`❌ YOLO exited with code ${code}`);
-          if (stderr) console.error('Error:', stderr.substring(0, 200));
+          logger.error('Process Error', `YOLO exited with code ${code}`, stderr.substring(0, 200));
           return resolve({
             detected: false,
             confidence: 0,
@@ -111,7 +111,7 @@ export async function detectPhoneYOLO(imageBase64) {
 
         // Try to parse the output
         if (!stdout || stdout.trim().length === 0) {
-          console.warn('⚠️ No stdout. Stderr:', stderr.substring(0, 150));
+          logger.warn('No Output', 'YOLO returned empty stdout', stderr.substring(0, 150));
           return resolve({
             detected: false,
             confidence: 0,
@@ -124,12 +124,11 @@ export async function detectPhoneYOLO(imageBase64) {
         try {
           const result = JSON.parse(stdout);
           if (result.detected) {
-            console.log(`✅ PHONE DETECTED: ${result.confidence}% confidence`);
+            logger.phoneDetected(result.confidence, result.count, result.boxes);
           }
           resolve(result);
         } catch (e) {
-          console.error('Parse failed:', e.message);
-          console.log('Stdout to parse:', stdout.substring(0, 300));
+          logger.error('Parse Error', e.message, `Failed to parse: ${stdout.substring(0, 300)}`);
           resolve({
             detected: false,
             confidence: 0,
@@ -154,7 +153,7 @@ export async function detectPhoneYOLO(imageBase64) {
           }
         }
 
-        console.error('❌ Process error:', err.message);
+        logger.error('Process Error', err.message);
         resolve({
           detected: false,
           confidence: 0,
@@ -167,11 +166,11 @@ export async function detectPhoneYOLO(imageBase64) {
       // Manual killer - force kill if taking too long
       const killTimer = setTimeout(() => {
         if (resolved) return;
-        console.warn('⏱️ Manual timeout - killing process NOW');
+        logger.warn('Timeout', 'Manually killing detection process');
         try {
           python.kill('SIGKILL');
         } catch (e) {
-          console.error('Kill failed:', e.message);
+          logger.error('Kill Failed', e.message);
         }
       }, 24000);
 
@@ -188,7 +187,7 @@ export async function detectPhoneYOLO(imageBase64) {
         }
       }
 
-      console.error('❌ Spawn error:', error.message);
+      logger.error('Spawn Error', error.message);
       resolve({
         detected: false,
         confidence: 0,

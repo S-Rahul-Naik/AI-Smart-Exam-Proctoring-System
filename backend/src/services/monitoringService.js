@@ -4,6 +4,7 @@
  */
 
 import Session from '../models/Session.js';
+import logger from '../utils/logger.js';
 
 // Event weights for risk calculation
 const EVENT_WEIGHTS = {
@@ -292,9 +293,18 @@ export const monitoringService = {
       // FILTER AND LOG ONLY PHONE DETECTION
       const phoneEvents = events.filter(e => e.type === 'phone_detected');
       if (phoneEvents.length > 0) {
-        console.log('\n🔴🔴🔴 PHONE DETECTED IN SERVICE 🔴🔴🔴');
         phoneEvents.forEach((event, idx) => {
-          console.log(`  [${idx + 1}] Confidence: ${event.confidence}% | Label: ${event.label}`);
+          logger.detection('HIGH', 'PHONE', event.confidence, event.label);
+        });
+      }
+
+      // Log other critical events
+      const criticalEvents = events.filter(e => 
+        e.type === 'multiple_faces' || e.type === 'devtools_open'
+      );
+      if (criticalEvents.length > 0) {
+        criticalEvents.forEach(event => {
+          logger.detection('HIGH', event.type.toUpperCase(), event.confidence);
         });
       }
 
@@ -307,12 +317,12 @@ export const monitoringService = {
 
       // If session already has many events, archive them IMMEDIATELY
       if (session.events && session.events.length > 2000) {
-        console.log(`⚠️ Session has ${session.events.length} events. Archiving to prevent 16MB limit...`);
+        logger.warn('Session Events', `Archiving ${session.events.length} events to prevent 16MB limit`);
         
         // Keep only the most recent 500 events
         const eventsToKeep = 500;
         if (session.events.length > eventsToKeep) {
-          console.log(`📦 Pruning to ${eventsToKeep} events (removing ${session.events.length - eventsToKeep} old events)`);
+          logger.info('Session Events', `Pruned to ${eventsToKeep} events (removed ${session.events.length - eventsToKeep} old)`);
           
           await Session.findByIdAndUpdate(
             sessionId,
@@ -383,7 +393,9 @@ export const monitoringService = {
 
       await Session.findByIdAndUpdate(sessionId, flagUpdateOps, { runValidators: false });
 
-      console.log(`✅ Event recording complete\n`);
+      if (process.env.VERBOSE_DEBUG === 'true') {
+        logger.success('Events', `Recorded ${events.length} event(s)`);
+      }
 
       return {
         riskScore,
@@ -392,8 +404,7 @@ export const monitoringService = {
         malpracticeIndicators,
       };
     } catch (error) {
-      console.error('❌ ERROR RECORDING EVENT:', error.message);
-      console.error(error);
+      logger.error('Event Recording', error.message);
       throw error;
     }
   },
