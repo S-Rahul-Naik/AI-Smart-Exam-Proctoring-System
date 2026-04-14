@@ -19,7 +19,7 @@ export default function AdminExamsPage() {
       try {
         setLoading(true);
         const response = await examAPI.getExams();
-        setExams(response.data || []);
+        setExams(response.data.exams || []);
       } catch (error) {
         console.error('Failed to fetch exams:', error);
         setExams([]);
@@ -47,7 +47,7 @@ export default function AdminExamsPage() {
   const handleReloadExams = async () => {
     try {
       const response = await examAPI.getExams();
-      setExams(response.data || []);
+      setExams(response.data.exams || []);
     } catch (error) {
       console.error('Failed to reload exams:', error);
     }
