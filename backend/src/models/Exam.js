@@ -9,10 +9,11 @@ const examSchema = new mongoose.Schema(
     },
     description: {
       type: String,
+      default: '',
     },
     subject: {
       type: String,
-      required: true,
+      default: '',
     },
     code: {
       type: String,
@@ -20,16 +21,24 @@ const examSchema = new mongoose.Schema(
       required: true,
       uppercase: true,
     },
+    courseCode: {
+      type: String,
+      default: '',
+    },
+    date: {
+      type: String,
+      default: '',
+    },
     duration: {
       type: Number,
       required: true,
-      min: 30,
-      max: 300,
+      min: 1,
+      max: 600,
     },
     totalQuestions: {
       type: Number,
-      required: true,
-      min: 1,
+      default: 0,
+      min: 0,
     },
     totalMarks: {
       type: Number,
@@ -38,18 +47,19 @@ const examSchema = new mongoose.Schema(
     },
     passingMarks: {
       type: Number,
-      required: true,
+      default: 40,
     },
     startTime: {
-      type: Date,
-      required: true,
+      type: String,
+      default: '',
     },
     endTime: {
-      type: Date,
-      required: true,
+      type: String,
+      default: '',
     },
     instructions: {
       type: String,
+      default: '',
     },
     riskThresholds: {
       low: {

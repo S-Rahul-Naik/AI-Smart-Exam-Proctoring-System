@@ -8,6 +8,7 @@ export const createExam = async (req, res, next) => {
       description,
       subject,
       code,
+      courseCode,
       duration,
       totalQuestions,
       totalMarks,
@@ -16,21 +17,38 @@ export const createExam = async (req, res, next) => {
       endTime,
       instructions,
       allowedStudents,
+      date,
     } = req.body;
 
+    // Validate required fields
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Exam title is required' });
+    }
+
+    const examCode = (code || courseCode || '').toUpperCase();
+    if (!examCode) {
+      return res.status(400).json({ error: 'Course code is required' });
+    }
+
+    if (!duration || duration < 1) {
+      return res.status(400).json({ error: 'Valid duration is required' });
+    }
+
     const exam = new Exam({
-      title,
-      description,
-      subject,
-      code: code.toUpperCase(),
-      duration,
-      totalQuestions,
-      totalMarks,
-      passingMarks,
-      startTime,
-      endTime,
-      instructions,
-      allowedStudents,
+      title: title.trim(),
+      description: description || '',
+      subject: subject || '',
+      code: examCode,
+      courseCode: examCode,
+      duration: parseInt(duration, 10),
+      totalQuestions: totalQuestions || 0,
+      totalMarks: totalMarks || 100,
+      passingMarks: passingMarks || 40,
+      startTime: startTime || '',
+      endTime: endTime || '',
+      date: date || '',
+      instructions: instructions || '',
+      allowedStudents: allowedStudents || [],
       createdBy: req.user.id,
     });
 
