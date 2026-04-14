@@ -105,7 +105,7 @@ FACE_THRESHOLD = 1  // Any faces > 1 triggers
 AUTO_SUBMIT_COUNTDOWN = 6  // seconds
 
 // Detection scope
-Check every 1 second
+Check every 500ms (2x per second)
 React to changes in:
   - enhancedMonitoring.events (phone)
   - proctorState.faceCount (faces)

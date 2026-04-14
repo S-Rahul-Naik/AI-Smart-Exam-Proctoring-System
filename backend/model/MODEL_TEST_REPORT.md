@@ -11,9 +11,9 @@ Generated: 2026-04-13 21:10:59
 ### Configuration Verification
 - Detection Service: ✅ Updated
 - Frontend Hook: ✅ Configured
-- Confidence Threshold: 20% (ultra-strict)
-- Check Interval: 1 second
-- Consecutive Frames: 2 (catches 1-2 second exposure)
+- Confidence Threshold: 30% (ultra-strict)
+- Check Interval: 500ms (2x per second)
+- Consecutive Frames: 2 (catches ~1 second exposure)
 
 ### System Integration
 - Exam Monitoring: Ready
@@ -57,10 +57,11 @@ npm run dev
 
 ## Expected Performance
 
-- **Inference Speed**: < 100ms per frame on RTX 2050
-- **Detection Accuracy**: High (trained on 4,216 phone images)
-- **False Positive Rate**: Very low (20% confidence threshold is strict)
-- **Response Time**: ~2 seconds (2 consecutive frames at 1 fps check rate)
+- **Inference Speed**: 64.47ms average on CPU (well under 100ms target)
+- **Detection Accuracy**: 80% on test set (16 out of 20 images with phones detected)
+- **Average Confidence**: 63.56% (ranging from 30.43% to 88.04%)
+- **Response Time**: ~1 second (2x 500ms check interval for 2-frame confirmation)
+- **Model Status**: Tested with visualization on actual dataset
 
 ## Support
 

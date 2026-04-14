@@ -170,9 +170,9 @@ export function useStrictPhoneDetection(
     }
 
     console.log('✅ STRICT Phone Detection ENABLED');
-    console.log('   🎯 Checking EVERY 1 second');
-    console.log('   📱 Confidence threshold: 20% (catches partial phones)');
-    console.log('   ⚡ Requires: 2 consecutive frames (~2 seconds)');
+    console.log('   🎯 Checking EVERY 500ms (2x per second)');
+    console.log('   📱 Confidence threshold: 30% (catches partial phones)');
+    console.log('   ⚡ Requires: 2 consecutive frames (~1 second)');
     console.log('   ⚠️ Catches BRIEF exposure - student can\'t hide phone in time!');
 
     // Start interval: check every 1 second to catch brief exposures

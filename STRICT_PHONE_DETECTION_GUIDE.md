@@ -9,9 +9,9 @@ useStrictPhoneDetection (OPTIMIZED HOOK)
 ExamMonitoringPage
     ↓
   - Initializes when exam starts
-  - Captures frame EVERY 1 SECOND
+  - Captures frame EVERY 500ms (2x per second)
   - Sends to /api/detect/phone
-  - 20% confidence threshold (catches partial phones)
+  - 30% confidence threshold (catches partial phones)
   - Requires only 2 consecutive frames
   - Triggers auto-submit on confirmation
   - Records event to /api/sessions/{id}/events
@@ -39,10 +39,10 @@ Returns: {
 
 | Parameter | Value | Purpose |
 |-----------|-------|---------|
-| **Check Interval** | Every 1 second | Doesn't miss brief exposures |
-| **Confidence Threshold** | 20% (0.20) | ULTRA-STRICT: catches partial/half phones |
-| **Consecutive Frames** | 2 (not 3) | Catches 1-2 second exposure |
-| **Confirmation Time** | ~2 seconds | Fast enough before student hides phone |
+| **Check Interval** | Every 500ms | 2x per second - doesn't miss brief exposures |
+| **Confidence Threshold** | 30% (0.30) | ULTRA-STRICT: catches partial/half phones |
+| **Consecutive Frames** | 2 (not 3) | Catches 1 second exposure (500ms + 500ms) |
+| **Confirmation Time** | ~1 second | Fast enough before student hides phone |
 | **Auto-submit** | Immediate | Zero tolerance |
 
 ### Why This Works
@@ -51,19 +51,19 @@ Returns: {
 - Student shows corner/edge of phone → CAUGHT
 - **Student CAN'T hide phone in time before confirmation!**
 
-## Why Previous 30-Second Version FAILED
+## Why Previous 1-Second Version Was Improved
 
-❌ **Old Detection Every 30 Seconds**
-- Student shows phone for 5 seconds at 0:15
-- Next check happens at 0:30 = MISSES COMPLETELY!
-- Student had 15+ seconds to hide before detection
+⚠️ **Old Detection Every 1 Second**
+- Student shows phone for 1-2 seconds at time T
+- Next check happens at T+1000ms = might miss brief exposure
+- Student had up to 1 second to hide after showing
 - Also required 3 frames = too many chances to escape
 
-✅ **NEW Ultra-Strict System**
-- Checks EVERY 1 SECOND (no escape window)
-- 20% confidence (catches partial/half phones)
-- Only needs 2 frames (~2 seconds confirmation)
-- Student can't hide phone before system confirms!
+✅ **NEW Ultra-Strict System (500ms)**
+- Checks EVERY 500ms (4x per minute, 2x per second)
+- 30% confidence (catches partial/half phones)
+- Only needs 2 frames (~1 second total confirmation)
+- Student has NO time to hide: 500ms detection + 500ms confirmation = 1 second!
 
 ## Testing Checklist
 

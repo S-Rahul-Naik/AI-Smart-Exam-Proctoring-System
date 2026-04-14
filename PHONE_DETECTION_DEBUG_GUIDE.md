@@ -135,7 +135,7 @@ Then restart backend: `npm run dev`
 
 - **First detection**: ~3-5 seconds (model loading + detection)
 - **Subsequent detections**: ~0.2-0.3 seconds each
-- **Per-frame overhead**: 2 second detection interval (from frontend hook)
+- **Per-frame overhead**: 500ms detection interval (optimized from 1 second)
 - **Memory**: ~500MB for YOLO model (after loading)
 
 ## System Architecture - Final Confirmation

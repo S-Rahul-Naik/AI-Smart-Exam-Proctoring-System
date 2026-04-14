@@ -164,7 +164,7 @@ python backend/model/deploy_trained_model.py
 // frontend/src/hooks/useStrictPhoneDetection.ts
 CONFIDENCE_THRESHOLD = 0.20        // Ultra-strict: 20%
 CONSECUTIVE_FRAMES_FOR_CONFIRMATION = 2  // 2 frames
-CHECK_INTERVAL_MS = 1000            // Every 1 second
+CHECK_INTERVAL_MS = 500             // Every 500ms (2x per second)
 AUTO_SUBMIT_ON_DETECTION = true     // Immediate action
 ```
 
@@ -277,7 +277,7 @@ python -c "from ultralytics import YOLO; \
 ## 🎓 Key Learnings
 
 1. **Generic models are insufficient** for specific use cases like phone detection
-2. **Aggressive checking** (1 second) + **strict thresholds** (20%) = effective detection
+2. **Aggressive checking** (500ms) + **strict thresholds** (30%) = effective detection
 3. **Custom training** on relevant data (4,216 phone images) dramatically improves accuracy
 4. **Quick confirmation** (2 frames) catches brief exposures without false positives
 5. **Automation** (deployment script) ensures reliable deployment after training

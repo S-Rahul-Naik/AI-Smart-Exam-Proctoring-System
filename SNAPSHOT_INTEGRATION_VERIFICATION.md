@@ -34,7 +34,7 @@ Images available for admin review
 ### 1. Frontend: Phone Detection Event Generation ✅
 **File**: `frontend/src/hooks/useEnhancedMonitoring.ts`
 
-- ✅ Captures frames every 1 second (optimized from 2s)
+- ✅ Captures frames every 500ms (2x per second, optimized from 1s)
 - ✅ Sends to YOLO backend for detection
 - ✅ When phone detected, creates event with `type: 'phone_detected'`
 - ✅ Events added to `enhancedMonitoring.events` array
@@ -294,7 +294,7 @@ snapshots: [
 
 ```typescript
 // Detection frequency
-const DETECTION_INTERVAL = 1000; // 1 second
+const DETECTION_INTERVAL = 500; // 500ms (2x per second)
 
 // Image quality
 const IMAGE_QUALITY = 0.5; // 50% JPEG compression

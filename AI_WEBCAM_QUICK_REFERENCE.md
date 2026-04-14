@@ -4,9 +4,10 @@
 
 ```
 Frontend Hooks:
-├─ /frontend/src/hooks/useMediaPipeProctor.ts      (Main - Gaze + Face Count)
-├─ /frontend/src/hooks/useAudioDetection.ts        (Lip Movement)
-├─ /frontend/src/hooks/useEnhancedMonitoring.ts    (Phone Detection + Lighting)
+├─ /frontend/src/hooks/useMediaPipeProctor.ts         (Face + Gaze @ 500ms)
+├─ /frontend/src/hooks/useAudioDetection.ts           (Lip Movement)
+├─ /frontend/src/hooks/useEnhancedMonitoring.ts       (Phone Detection @ 500ms)
+├─ /frontend/src/hooks/useContinuousFaceMatching.ts   (Face Verification @ 500ms)
 
 Backend Services:
 ├─ /backend/src/services/monitoringService.js      (Risk Scoring)
@@ -22,7 +23,7 @@ Backend Services:
 │   (Webcam)      │
 └────────┬────────┘
          │
-         ├─ Every 500ms
+         ├─ Every 500ms (optimized from 1 sec)
          │
     ┌────▼────────────────────────────────┐
     │  MediaPipe Face Landmarker           │

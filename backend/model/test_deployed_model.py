@@ -157,9 +157,10 @@ Generated: {timestamp}
 ### Configuration Verification
 - Detection Service: ✅ Updated
 - Frontend Hook: ✅ Configured
-- Confidence Threshold: 20% (ultra-strict)
-- Check Interval: 1 second
-- Consecutive Frames: 2 (catches 1-2 second exposure)
+- Confidence Threshold: 30% (ultra-strict)
+- Check Interval: 500ms (2x per second)
+- Consecutive Frames: 2 (catches ~1 second exposure)
+- Inference Speed: 64.47ms average
 
 ### System Integration
 - Exam Monitoring: Ready

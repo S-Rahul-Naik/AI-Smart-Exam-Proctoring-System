@@ -31,13 +31,13 @@
 ### 3. System Integration ✅
 - **Detection Service**: Updated to use custom model
 - **Frontend Hook**: useStrictPhoneDetection.ts (fully configured)
-  - Confidence Threshold: 20% (ultra-strict, catches partial phones)
-  - Check Interval: 1 second (aggressive, catches brief exposures)
+  - Confidence Threshold: 30% (ultra-strict, catches partial phones)
+  - Check Interval: 500ms (2x per second, catches brief exposures)
   - Consecutive Frames: 2 (catches 1-2 second phone display)
   - Auto-Submit: Enabled and operational
 - **Detection Performance**: 
-  - **Inference Speed**: 41.3ms per frame (well under 100ms target)
-  - **Test Result**: Successfully detected phone in test image
+  - **Inference Speed**: 64.47ms per frame average (CPU-based, well under 100ms target)
+  - **Test Results**: 20 dataset images tested, 80% detection rate (16/20 images), 30 total detections, 63.56% average confidence
 
 ### 4. Testing & Validation ✅
 - Model inference: WORKING (41.3ms inference time)
@@ -57,7 +57,7 @@
 | **Model Accuracy (mAP50)** | 94.8% | ✅ Excellent |
 | **Phone Detection Rate** | 89.1% | ✅ High |
 | **Precision** | 92.9% | ✅ Reliable |
-| **Inference Speed** | 41.3ms | ✅ Fast |
+| **Inference Speed** | 64.47ms avg | ✅ Fast |
 | **Deployment** | Complete | ✅ Ready |
 | **System Integration** | Complete | ✅ Ready |
 
@@ -73,9 +73,9 @@ Your exam proctoring system now has:
    - High detection rate (89.1% catches phones)
 
 2. **Aggressive Detection Strategy**
-   - Checks EVERY 1 SECOND (catches brief exposures)
-   - 20% confidence threshold (catches even partial phones)
-   - 2-frame confirmation (~2 seconds) to minimize false positives
+   - Checks EVERY 500ms (2x per second, catches brief exposures)
+   - 30% confidence threshold (catches even partial phones)
+   - 2-frame confirmation (~1 second) to minimize false positives
    - Instant auto-submit on detection
 
 3. **Production Integration**
@@ -97,7 +97,7 @@ Your exam proctoring system now has:
 **Exam Flow with Phone Detection**:
 
 1. Student takes exam
-2. Every 1 second: Hook captures video frame
+2. Every 500ms: Hook captures video frame (optimized from 1 second)
 3. Frame sent to backend YOLO detector
 4. If phone detected (>20% confidence):
    - Increment consecutive frame counter
