@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
-import { mockStudents } from '../../../../mocks/students';
+
+interface Session {
+  _id: string;
+  student: { firstName: string; lastName: string; email: string };
+  avgRisk: number;
+}
 
 interface Props {
+  sessions: Session[];
   riskScores: Record<string, number>;
   onSelect: (id: string) => void;
   selectedId: string | null;
@@ -19,13 +25,18 @@ const RISK_COLORS = {
   low: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', bar: 'bg-emerald-500', badge: 'bg-emerald-500/20 text-emerald-400' },
 };
 
-export default function RiskLeaderboard({ riskScores, onSelect, selectedId }: Props) {
+export default function RiskLeaderboard({ sessions, riskScores, onSelect, selectedId }: Props) {
   const sorted = useMemo(() => {
-    return mockStudents
-      .filter(s => s.status === 'active')
-      .map(s => ({ ...s, currentRisk: Math.round(riskScores[s.id] || 0) }))
+    return sessions
+      .filter(s => s.student && s.student.firstName && s.student.lastName) // Filter out invalid sessions
+      .map(s => ({
+        id: s._id,
+        name: `${s.student.firstName} ${s.student.lastName}`,
+        email: s.student.email || 'No email',
+        currentRisk: Math.round(riskScores[s._id] || s.avgRisk || 0),
+      }))
       .sort((a, b) => b.currentRisk - a.currentRisk);
-  }, [riskScores]);
+  }, [sessions, riskScores]);
 
   return (
     <div className="bg-[#111318] border border-[#1e2330] rounded-xl overflow-hidden">
@@ -59,6 +70,7 @@ export default function RiskLeaderboard({ riskScores, onSelect, selectedId }: Pr
               {/* Name */}
               <div className="flex-1 min-w-0">
                 <div className="text-white text-xs font-semibold truncate">{student.name}</div>
+                <div className="text-[#6b7280] text-xs truncate">{student.email}</div>
                 <div className="relative h-1.5 bg-[#1e2330] rounded-full overflow-hidden mt-1">
                   <div
                     className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ${colors.bar}`}

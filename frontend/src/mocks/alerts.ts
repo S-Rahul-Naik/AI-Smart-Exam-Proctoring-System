@@ -3,6 +3,7 @@ export type AlertType = 'gaze_deviation' | 'face_missing' | 'multiple_faces' | '
 export interface AlertEvent {
   id: string;
   studentId: string;
+  studentName?: string;
   type: AlertType;
   timestamp: string;
   relativeTime: number;

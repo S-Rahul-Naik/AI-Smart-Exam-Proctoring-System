@@ -10,11 +10,15 @@ import { useAdminAlerts } from '../../../hooks/useAdminAlerts';
 interface Session {
   _id: string;
   student: { email: string; firstName: string; lastName: string };
+  exam: { title?: string; name?: string } | string;
   status: string;
   riskScore: number;
   alertsCount: number;
   highRiskCount: number;
   avgRisk: number;
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
 }
 
 export default function AdminMonitoringPage() {
@@ -36,13 +40,19 @@ export default function AdminMonitoringPage() {
     markAllRead,
     markOneRead,
     dismissToast,
-  } = useAdminAlerts(riskScores);
+  } = useAdminAlerts(sessions);
 
   // Fetch active sessions from API
   useEffect(() => {
+    let isInitialLoad = true;
+
     const fetchSessions = async () => {
       try {
-        setLoading(true);
+        // Only show loading on initial load, not on polling updates
+        if (isInitialLoad) {
+          setLoading(true);
+        }
+        
         const response = await adminAPI.getActiveSessions();
         const sessionsData = response.data.sessions;
         setSessions(sessionsData);
@@ -52,17 +62,25 @@ export default function AdminMonitoringPage() {
           sessionsData.map((s: Session) => [s._id, s.avgRisk])
         );
         setRiskScores(scores);
+        
+        // Mark initial load as complete
+        if (isInitialLoad) {
+          setLoading(false);
+          isInitialLoad = false;
+        }
       } catch (err: any) {
         console.error('Failed to fetch sessions:', err);
         setError(err.response?.data?.error || 'Failed to load sessions');
-      } finally {
-        setLoading(false);
+        if (isInitialLoad) {
+          setLoading(false);
+          isInitialLoad = false;
+        }
       }
     };
 
     fetchSessions();
-    // Poll every 3 seconds for updates
-    const interval = setInterval(fetchSessions, 3000);
+    // Poll every 5 seconds for updates (reduced frequency to minimize flickering)
+    const interval = setInterval(fetchSessions, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -279,10 +297,48 @@ export default function AdminMonitoringPage() {
                         {session.avgRisk}%
                       </div>
                     </div>
-                    <div className="text-xs text-[#6b7280] space-y-1">
-                      <div>Status: <span className="text-white">{session.status}</span></div>
-                      <div>Alerts: <span className="text-white">{session.alertsCount}</span></div>
-                      <div>High Risk: <span className="text-white">{session.highRiskCount}</span></div>
+                    {/* Exam info */}
+                    <div className="mb-3 pb-3 border-b border-[#1e2330]">
+                      <div className="text-xs font-semibold text-teal-400 mb-1">📚 Exam</div>
+                      <div className="text-white text-xs font-medium">
+                        {typeof session.exam === 'object' ? (session.exam.title || session.exam.name || 'N/A') : session.exam || 'N/A'}
+                      </div>
+                    </div>
+                    {/* Session metrics */}
+                    <div className="text-xs text-[#6b7280] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span>Status:</span>
+                        <span className={`font-semibold ${
+                          session.status === 'submitted' ? 'text-emerald-400' :
+                          session.status === 'in_progress' ? 'text-teal-400' :
+                          session.status === 'completed' ? 'text-blue-400' :
+                          'text-[#6b7280]'
+                        }`}>
+                          {session.status}
+                        </span>
+                      </div>
+                      {session.startTime && (
+                        <div className="flex items-center justify-between">
+                          <span>Started:</span>
+                          <span className="text-white text-xs">
+                            {new Date(session.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      )}
+                      {session.duration && (
+                        <div className="flex items-center justify-between">
+                          <span>Duration:</span>
+                          <span className="text-white text-xs">{session.duration} mins</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span>Alerts:</span>
+                        <span className="text-white font-semibold">{session.alertsCount}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>High Risk Events:</span>
+                        <span className="text-red-400 font-semibold">{session.highRiskCount}</span>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -313,6 +369,7 @@ export default function AdminMonitoringPage() {
 
             {rightTab === 'leaderboard' && (
               <RiskLeaderboard
+                sessions={sessions}
                 riskScores={riskScores}
                 onSelect={(id) => setSelectedStudent(selectedStudent === id ? null : id)}
                 selectedId={selectedStudent}
