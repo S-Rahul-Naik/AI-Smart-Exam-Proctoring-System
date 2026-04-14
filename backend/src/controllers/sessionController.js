@@ -4,6 +4,7 @@ import Student from '../models/Student.js';
 import Alert from '../models/Alert.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
 import { monitoringService } from '../services/monitoringService.js';
+import scoringService from '../services/scoringService.js';
 import logger from '../utils/logger.js';
 
 // Event weights for the malpractice report
@@ -146,13 +147,35 @@ export const submitSession = async (req, res, next) => {
     const { answers } = req.body;
 
     // First fetch existing session to get startTime
-    const existingSession = await Session.findById(sessionId);
+    const existingSession = await Session.findById(sessionId).populate('exam');
     if (!existingSession) {
       return res.status(404).json({ error: 'Session not found' });
     }
 
     // Calculate duration based on existing session
     const duration = Date.now() - new Date(existingSession.startTime).getTime();
+
+    // ✅ CALCULATE EXAM SCORE
+    let examScore = { score: 0, percentage: 0, breakdow: {} };
+    let riskScoreData = { riskScore: 0, riskLevel: 'low' };
+
+    try {
+      // Calculate exam score from answers
+      if (answers && existingSession.exam) {
+        examScore = await scoringService.calculateExamScore(
+          existingSession.exam._id,
+          new Map(Object.entries(answers))
+        );
+        console.log('✅ Exam score calculated:', { percentage: examScore.percentage });
+      }
+
+      // Calculate risk score from events
+      riskScoreData = monitoringService.calculateRiskScore(existingSession);
+      console.log('✅ Risk score calculated:', { score: riskScoreData.riskScore });
+    } catch (scoreError) {
+      console.warn('⚠️ Error calculating scores:', scoreError.message);
+      // Continue with defaults if scoring fails
+    }
 
     // ✅ AUTO-FLAG on critical malpractice
     // Check for critical violations that should auto-flag
@@ -196,7 +219,7 @@ export const submitSession = async (req, res, next) => {
       console.warn(`   Violations: ${flagReason}`);
     }
 
-    // Now update session with calculated duration and flagging
+    // Now update session with calculated duration, scores, and flagging
     const session = await Session.findByIdAndUpdate(
       sessionId,
       {
@@ -204,6 +227,14 @@ export const submitSession = async (req, res, next) => {
         endTime: new Date(),
         answers,
         duration,
+        score: examScore.score,
+        examScore: {
+          obtained: examScore.obtainedMarks || 0,
+          total: examScore.totalMarks || 0,
+          percentage: examScore.percentage || 0,
+        },
+        riskScore: riskScoreData.riskScore,
+        riskLevel: riskScoreData.riskLevel,
         flagged: shouldFlag,
         flagReason: shouldFlag ? flagReason : undefined,
         flagSeverity: shouldFlag ? 'critical' : undefined,
@@ -224,12 +255,18 @@ export const submitSession = async (req, res, next) => {
       flagged: shouldFlag,
       reason: flagReason || 'Clean submission',
       duration: `${(duration / 1000).toFixed(1)}s`,
+      examScore: `${examScore.percentage}%`,
+      riskScore: riskScoreData.riskScore,
     });
 
     res.json({ 
       message: shouldFlag ? 'Session flagged for malpractice' : 'Session submitted',
       session,
-      flagged: shouldFlag
+      flagged: shouldFlag,
+      scores: {
+        examScore: examScore.percentage,
+        riskScore: riskScoreData.riskScore,
+      }
     });
   } catch (error) {
     console.error('❌ ERROR Submitting Session:', error.message);

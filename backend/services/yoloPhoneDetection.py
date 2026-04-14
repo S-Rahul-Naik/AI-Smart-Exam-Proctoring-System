@@ -39,7 +39,7 @@ def detect_phone_in_base64(image_base64: str) -> dict:
         }
     """
     # Minimum confidence threshold to avoid false positives
-    PHONE_CONFIDENCE_THRESHOLD = 60
+    PHONE_CONFIDENCE_THRESHOLD = 75
     
     try:
         # Decode base64 image

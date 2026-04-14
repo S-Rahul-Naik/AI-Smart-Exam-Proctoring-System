@@ -6,7 +6,7 @@ export const getExamQuestions = async (req, res) => {
   try {
     const { examId } = req.params;
 
-    if (!examId || !examId.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!examId || examId.trim() === '') {
       return res.status(400).json({ error: 'Invalid exam ID' });
     }
 
@@ -27,7 +27,7 @@ export const createQuestion = async (req, res) => {
     const { examId } = req.params;
     const { question, type, marks, options, difficulty, explanation, tags, description } = req.body;
 
-    if (!examId || !examId.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!examId || examId.trim() === '') {
       return res.status(400).json({ error: 'Invalid exam ID' });
     }
 

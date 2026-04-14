@@ -251,7 +251,7 @@ export const monitoringService = {
     }
 
     // Phone detected = auto-flag (only if confidence >= 65%)
-    const PHONE_CONFIDENCE_THRESHOLD = 65;
+    const PHONE_CONFIDENCE_THRESHOLD = 75;
     const phoneEvents = session.events.filter(
       e => e.type === 'phone_detected' && e.confidence >= PHONE_CONFIDENCE_THRESHOLD
     );

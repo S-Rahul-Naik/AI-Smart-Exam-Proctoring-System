@@ -255,6 +255,20 @@ const sessionSchema = new mongoose.Schema(
       of: Number,
     },
     score: Number,
+    examScore: {
+      obtained: {
+        type: Number,
+        default: 0,
+      },
+      total: {
+        type: Number,
+        default: 0,
+      },
+      percentage: {
+        type: Number,
+        default: 0,
+      },
+    },
     result: String,
     // Performance metrics
     performanceMetrics: {
