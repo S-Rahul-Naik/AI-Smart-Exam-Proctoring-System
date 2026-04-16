@@ -23,7 +23,7 @@ const steps = [
   { num: '02', title: 'Pre-Exam System Check', desc: 'Camera validation, lighting quality assessment, face positioning feedback, and multiple-face detection.' },
   { num: '03', title: 'Rules & Consent', desc: 'Display exam rules, monitoring disclosure, and require explicit agreement before the exam begins.' },
   { num: '04', title: 'Focus Mode Exam', desc: 'Minimal UI with live webcam widget, status indicator, and real-time behavioral feedback toasts.' },
-  { num: '05', title: 'AI Analysis & Risk Scoring', desc: 'Continuous temporal behavior analysis generates dynamic risk scores with explainable event logs.' },
+  { num: '05', title: 'AI Analysis & Risk Scoring', desc: 'Continuous temporal behavior analysis generates dynamic risk scores with detailed event logs.' },
   { num: '06', title: 'Admin Review & Decision', desc: 'Session review with evidence snapshots, event timeline, and manual approve/flag/reject decision.' },
 ];
 
