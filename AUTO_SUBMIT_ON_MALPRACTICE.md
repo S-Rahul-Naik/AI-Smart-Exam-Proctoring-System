@@ -148,7 +148,7 @@ if (criticalViolations.length > 0) {
 ```
 1. Exam running normally
 2. Phone enters camera frame
-3. YOLO detects phone (>15% confidence)
+3. YOLO detects phone (≥75 confidence score)
 4. Event: phone_detected created
 5. Frontend detects phone_detected event type
 6. UI freezes with red overlay:
@@ -263,7 +263,7 @@ CRITICAL_VIOLATIONS = ['phone_detected', 'multiple_faces', 'devtools_open'];
 AUTO_SUBMIT_COUNTDOWN = 6; // seconds
 
 // Detection sensitivity
-PHONE_CONFIDENCE_THRESHOLD = 0.15; // 15% (very sensitive)
+PHONE_CONFIDENCE_THRESHOLD = 75; // confidence score (filters false positives)
 FACE_COUNT_THRESHOLD = 1; // >1 = multiple people
 ```
 

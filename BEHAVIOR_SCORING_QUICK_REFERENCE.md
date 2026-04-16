@@ -41,7 +41,7 @@
 4. Cap at 100
 
 Example:
-  Gaze deviation (×2) ......... +16 pts
+  Gaze deviation (×1) ........... +8 pts per event
   Tab switch (×3) ............ +45 pts
   Phone detected (×1) ........ +30 pts
   Critical multiplier ........ +15 pts

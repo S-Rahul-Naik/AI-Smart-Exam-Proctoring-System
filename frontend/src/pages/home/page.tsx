@@ -6,7 +6,7 @@ const features = [
   { icon: 'ri-eye-line', title: 'Real-Time Monitoring', desc: 'Process webcam frames at 1–2 FPS with low latency AI inference. Monitor hundreds of candidates simultaneously.' },
   { icon: 'ri-brain-line', title: 'Multi-Modal Detection', desc: 'Detect face absence, multiple faces, gaze direction (center/left/right/down), and mobile phone presence.' },
   { icon: 'ri-timeline-line', title: 'Temporal Pattern Analysis', desc: '30-second sliding window tracks behavioral frequency, absence duration, and repeated suspicious patterns.' },
-  { icon: 'ri-radar-line', title: 'Dynamic Risk Scoring', desc: 'Weighted scoring: phone (×5), face missing (×3), gaze deviation (×2). Includes time-based decay.' },
+  { icon: 'ri-radar-line', title: 'Dynamic Risk Scoring', desc: 'Weighted scoring: phone (30), face missing (20), gaze deviation (8). Includes time-based decay across 30-sec window.' },
   { icon: 'ri-shield-check-line', title: 'Explainable Alerts', desc: 'Every alert includes reason, timestamp, contributing signals, and human-readable explanation.' },
   { icon: 'ri-dashboard-3-line', title: 'Admin Console', desc: 'Live student grid, event timeline, risk trend graphs, evidence snapshots, and prioritized alert queue.' },
 ];
@@ -177,9 +177,9 @@ export default function HomePage() {
               <p className="text-[#6b7280] text-base mb-8 leading-relaxed">Unlike static frame analysis, ProctorAI maintains a 30-second behavioral sliding window. Risk accumulates with violations and decays when behavior stabilizes — modeling true suspicious intent.</p>
               <div className="space-y-4">
                 {[
-                  { label: 'Phone Detected', weight: '×5', color: 'bg-red-500', w: '100%' },
-                  { label: 'Face Missing', weight: '×3', color: 'bg-orange-500', w: '60%' },
-                  { label: 'Gaze Deviation', weight: '×2', color: 'bg-amber-500', w: '40%' },
+                  { label: 'Phone Detected', weight: '30', color: 'bg-red-500', w: '100%' },
+                  { label: 'Face Missing', weight: '20', color: 'bg-orange-500', w: '67%' },
+                  { label: 'Gaze Deviation', weight: '8', color: 'bg-amber-500', w: '27%' },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-4">
                     <div className="w-36 text-sm text-[#9ca3af]">{item.label}</div>

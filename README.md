@@ -265,9 +265,9 @@ PATCH  /api/alerts/:id/resolve         # Mark resolved
 Risk Score = Σ(weight × frequency × duration) with decay
 
 Weights:
-- Face absent: 3 points
-- Gaze deviation: 2 points  
-- Phone detected: 5 points
+- Face absent: 20 points
+- Gaze deviation: 8 points  
+- Phone detected: 30 points
 - Tab switch: 3 points
 - Window blur: 3 points
 - Fullscreen exit: 4 points
