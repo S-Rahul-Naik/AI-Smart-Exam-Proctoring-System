@@ -81,6 +81,10 @@ export default defineConfig({
     host: "0.0.0.0",
     middlewareMode: false,
     hmr: true,
+    // Security: Prevent directory listing and ensure SPA routing
+    fs: {
+      allow: ['.']
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
