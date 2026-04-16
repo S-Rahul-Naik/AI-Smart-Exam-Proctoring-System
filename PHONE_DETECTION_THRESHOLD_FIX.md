@@ -5,7 +5,7 @@
 
 ## Problem
 
-Your exam was auto-submitted due to a phone detection at **67.2% confidence**. The system had **NO confidence threshold** — any detection above 0% confidence was treated as certain and triggered auto-submit.
+Exams were being auto-submitted due to false phone detections from objects like remotes, books, or notepads. The system had **NO confidence threshold** — any detection was treated as certain regardless of confidence level.
 
 This caused false positives from objects like:
 - Dark remotes or books
@@ -15,7 +15,7 @@ This caused false positives from objects like:
 
 ## Solution
 
-Implemented a **75% confidence threshold** across all three detection layers:
+Implemented a **75 confidence score threshold** across all three detection layers. Objects must reach a confidence ≥ 75 to trigger auto-submit:
 
 ### 1. Python YOLO Detection
 **File:** `backend/services/yoloPhoneDetection.py`

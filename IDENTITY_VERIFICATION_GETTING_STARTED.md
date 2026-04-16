@@ -9,7 +9,7 @@ The identity verification system is **fully implemented and ready**. To test it:
 Ensure these are running:
 1. **MongoDB** - Database server
 2. **Backend** - Node.js server on port 5000
-3. **Frontend** - Vite dev server on port 5173
+3. **Frontend** - Vite dev server on port 3000
 4. **ArcFace Service** - Face comparison service (if not available, uses fallback)
 
 ### Step 1: Start Backend
@@ -37,7 +37,7 @@ npm run dev
 
 **Expected output:**
 ```
-Local: http://localhost:5173
+Local: http://localhost:3000
 ```
 
 ### Step 3: Run Backend Tests
@@ -59,7 +59,7 @@ node test-identity-verification.js
 
 ### Step 4: Manual Testing
 
-1. Open `http://localhost:5173` in browser
+1. Open `http://localhost:3000` in browser
 2. Login with test account
 3. Start an exam
 4. See identity verification overlay

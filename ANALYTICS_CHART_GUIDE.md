@@ -51,8 +51,13 @@ node -e "
 import mongoose from 'mongoose';
 (async () => {
   await mongoose.connect('mongodb://localhost');
+  // Delete sessions from test students (emails ending with @university.edu)
+  const testStudents = await mongoose.connection.collection('students').find({
+    email: { \\\$regex: '@university\\\\.edu\\\$' }
+  }).toArray();
+  const studentIds = testStudents.map(s => s._id);
   await mongoose.connection.collection('sessions').deleteMany({
-    student: { \$in: ['student1@test.com', 'student2@test.com', 'student3@test.com', 'student4@test.com', 'student5@test.com'] }
+    student: { \\\$in: studentIds }
   });
   console.log('✅ Test data cleaned up');
   process.exit(0);

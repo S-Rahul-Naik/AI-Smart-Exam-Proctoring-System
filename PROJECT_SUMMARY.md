@@ -212,7 +212,7 @@ curl -X POST http://localhost:5000/api/students/register \
   -H "Content-Type: application/json" \
   -d '{"email":"test@ex.com","firstName":"T","lastName":"S","password":"Pass123!","confirmPassword":"Pass123!"}'
 
-# 4. Open browser: http://localhost:5173/login
+# 4. Open browser: http://localhost:3000/login
 # 5. Enter credentials above
 # 6. Check MongoDB for new student record
 # 7. Check browser localStorage for JWT token
@@ -280,7 +280,7 @@ CLOUDINARY_CLOUD_NAME=your_account
 CLOUDINARY_API_KEY=xxx
 CLOUDINARY_API_SECRET=xxx
 JWT_SECRET=generate-with-openssl
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:3000
 ```
 
 ### Frontend `.env` (Optional - already set)
@@ -292,8 +292,8 @@ VITE_API_URL=http://localhost:5000/api
 
 ## ✨ Next Optional Features
 
-### Real-Time (Socket.IO)
-Admin dashboard updates live as students take exams:
+### Real-Time (REST polling; Socket.IO future enhancement)
+Admin dashboard updates via polling as students take exams:
 ```typescript
 // Backend
 io.on('connection', (socket) => {
@@ -393,7 +393,7 @@ When you continue:
 2. Test the registration/login flow
 3. Check MongoDB for records
 4. Check Cloudinary for uploads
-5. Then work on Phase 2 (Socket.IO, advanced features)
+5. Then work on Phase 2 (real-time polling refinements, future Socket.IO if needed)
 
 ---
 

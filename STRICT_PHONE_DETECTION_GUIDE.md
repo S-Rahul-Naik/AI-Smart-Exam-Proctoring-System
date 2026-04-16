@@ -40,31 +40,29 @@ Returns: {
 | Parameter | Value | Purpose |
 |-----------|-------|---------|
 | **Check Interval** | Every 500ms | 2x per second - doesn't miss brief exposures |
-| **Confidence Threshold** | 30% (0.30) | ULTRA-STRICT: catches partial/half phones |
+| **Confidence Threshold** | 75 (confidence score) | Prevents false positives: catches clear phones only |
 | **Consecutive Frames** | 2 (not 3) | Catches 1 second exposure (500ms + 500ms) |
 | **Confirmation Time** | ~1 second | Fast enough before student hides phone |
 | **Auto-submit** | Immediate | Zero tolerance |
 
 ### Why This Works
-- Student shows phone for 1-2 seconds → CAUGHT
-- Student only shows half a phone → CAUGHT  
-- Student shows corner/edge of phone → CAUGHT
-- **Student CAN'T hide phone in time before confirmation!**
+- Student shows phone clearly (confidence 75+) → CAUGHT
+- Student shows partial/distant phone (confidence <75) → Logged but not auto-submit (requires admin review)
+- **High confidence threshold prevents false positives** from remotes, books, etc.
 
 ## Why Previous 1-Second Version Was Improved
 
 ⚠️ **Old Detection Every 1 Second**
-- Student shows phone for 1-2 seconds at time T
-- Next check happens at T+1000ms = might miss brief exposure
-- Student had up to 1 second to hide after showing
-- Also required 3 frames = too many chances to escape
+- Student shows phoSystem**
+- No confidence threshold at all
+- ANY detection = auto-submit (even false positives)
+- High false positive rate from objects
 
-✅ **NEW Ultra-Strict System (500ms)**
-- Checks EVERY 500ms (4x per minute, 2x per second)
-- 30% confidence (catches partial/half phones)
+✅ **NEW Ultra-Strict System (75 confidence threshold)**
+- Checks EVERY 500ms (2x per second)
+- 75 confidence score minimum (reliable phone detection)
 - Only needs 2 frames (~1 second total confirmation)
-- Student has NO time to hide: 500ms detection + 500ms confirmation = 1 second!
-
+- Prevents false positives from remotes, books, etc.
 ## Testing Checklist
 
 ### ✅ Backend Setup
@@ -89,15 +87,16 @@ Returns: {
 2. **Test 1: Quick Phone Flash (1 second)**
    - Start exam
    - Quickly show phone for just 1-2 seconds
-   - SHOULD BE CAUGHT - won't have time to hide!
-   - See in console: "📱 Phone detection [1/2]", "[2/2]"
+   - SHOULD BE CAUGHT - clearly (high confidence)
+   - SHOULD BE CAUGHT if confidence ≥ 75
+   - See in console: "📱 Phone detection [1/2] confidence: 78", "[2/2]"
    - Then: "🚨🚨🚨 PHONE CONFIRMED DETECTED!"
 
-3. **Test 2: Half Phone (Partial Exposure)**
-   - Show only half of phone to camera
-   - Should still detect with 20% confidence
-   - 2 consecutive frames = auto-submit
-   
+3. **Test 2: Partial Phone (Low Confidence)**
+   - Show only edge/corner of phone
+   - Should detect with <75 confidence
+   - 2 consecutive low-confidence frames = logged but no auto-submit
+   - Check admin panel for logged even
 4. **Test 3: Phone Edge/Corner**
    - Show just corner edge of phone visible
    - Should detect even partial visibility

@@ -67,7 +67,7 @@ AdminExamsPage
   exam: ObjectId (required),           // Reference to Exam
   number: Number (required),           // Auto-incremented question number
   question: String (required),         // Question text
-  type: String (enum),                 // mcq|short-answer|essay|true-false
+  type: String (enum),                 // mcq|true-false
   marks: Number (required),            // Points for this question
   options: Array (for MCQ),            // [{id, text, isCorrect}]
   difficulty: String,                  // easy|medium|hard
@@ -589,7 +589,7 @@ Response:
 ### Prerequisites
 - MongoDB running on `localhost:27017`
 - Backend on port 5000
-- Frontend on port 5173
+- Frontend on port 3000
 
 ### Steps
 
@@ -614,7 +614,7 @@ Response:
    ```
 
 4. **Test End-to-End**
-   - Navigate to http://localhost:5173
+   - Navigate to http://localhost:3000
    - Login as admin
    - Go to Exams
    - Click "Questions" on any exam

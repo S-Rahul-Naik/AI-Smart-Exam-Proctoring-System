@@ -137,12 +137,12 @@ Description...
 1. ✅ **Complete System Check** - Camera, lighting, face verification
 2. ✅ **Enter Course Code** - Ask instructor for course code (e.g., "CS401")
 3. ✅ **Read Rules** - Understand exam rules and consent
-4. ✅ **Take Exam** - Answer all 4 questions (short-answer, essay, true-false, MCQ)
+4. ✅ **Take Exam** - Answer all questions (MCQ, true-false)
 
 ## Instructions for Admins
 
 1. ✅ **Create Exam** - Set title, course code (e.g., "CS401"), duration
-2. ✅ **Add Questions** - Click "Questions" button to add questions (MCQ, essay, etc.)
+2. ✅ **Add Questions** - Click "Questions" button to add questions (MCQ, true-false)
 3. ✅ **Share Course Code** - Click "Copy Course Code" button
 4. ✅ **Send to Students** - Share the course code (e.g., "CS401") via email/LMS
 5. ✅ **Monitor** - Click "Monitor" to watch active exams
@@ -153,8 +153,8 @@ Exam: "Advanced Algorithms & Data Structures"
 - **Course Code:** CS401 (students enter this)
 - **Database ID:** 69dec12bc34fc13aa0f00d87 (used internally)
 - **Questions:** 4 total
-  - Q1: "What is ur name?" (short-answer, 1 mark)
-  - Q2: "Who Are you" (essay, 1 mark) 
+  - Q1: "What is ur name?" (MCQ, 1 mark)
+  - Q2: "Who Are you" (true-false, 1 mark) 
   - Q3: "HOw are you" (true-false, 1 mark)
   - Q4: "What is the time complexity of Binary Search?" (MCQ, 1 mark)
 

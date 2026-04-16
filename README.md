@@ -37,7 +37,7 @@ npm install
 npm run dev
 ```
 
-**Open**: http://localhost:5173
+**Open**: http://localhost:3000
 
 ---
 
@@ -155,7 +155,7 @@ proctor/
 - **Cloudinary** - Image storage
 - **JWT** - Authentication
 - **bcryptjs** - Password hashing
-- **Socket.IO** - Real-time (optional)
+- **REST polling** - Real-time updates (Socket.IO not implemented)
 
 ### External Services
 - **MongoDB Atlas** - Cloud database (free tier: 512 MB)
@@ -192,7 +192,7 @@ Frontend AI Processing (MediaPipe)
   ↓ (Events: face_absent, gaze_deviation, phone_detected)
 Backend Event Storage (MongoDB)
   ↓
-Admin Dashboard (Real-time updates)
+Admin Dashboard (REST-polling updates)
 
 Snapshots:
   ↓ (On high-risk events)
@@ -310,7 +310,7 @@ curl -X POST http://localhost:5000/api/students/login \
 ```
 
 ### 3. Browser Test
-1. Open http://localhost:5173/login
+1. Open http://localhost:3000/login
 2. Click "Student" role
 3. Enter credentials above
 4. Allow camera access
@@ -359,7 +359,7 @@ git push heroku main
 | "Login failed" | Check MongoDB connection, verify credentials registered |
 | "CORS error" | Update `FRONTEND_URL` in backend `.env`, restart backend |
 | "Snapshots not uploading" | Verify Cloudinary credentials in backend `.env` |
-| "Port 5000/5173 in use" | Close other apps using ports or change in config |
+| "Port 5000/3000 in use" | Close other apps using ports or change in config |
 
 ---
 
@@ -440,7 +440,7 @@ MIT © 2026 ProctorAI Team
 - JWT authentication
 
 ### Phase 2 (🚀 NEXT)
-- Socket.IO real-time monitoring
+- REST-polling live updates (Socket.IO not implemented)
 - YOLOv8 phone detection
 - Email notifications
 - Advanced analytics

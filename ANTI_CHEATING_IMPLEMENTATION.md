@@ -137,9 +137,7 @@ Cheating becomes obvious
 
 **Question Types Supported:**
 - Multiple choice (randomized options)
-- Scenario-based (require thinking)
-- Logic-based (can't copy-paste)
-- Coding problems (obvious plagiarism)
+- True/False (randomized options)
 
 ---
 

@@ -63,7 +63,7 @@ CLOUDINARY_CLOUD_NAME=xxx
 CLOUDINARY_API_KEY=xxx
 CLOUDINARY_API_SECRET=xxx
 JWT_SECRET=xxx
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:3000
 ```
 
 ---
@@ -90,12 +90,12 @@ npm run dev
 cd frontend
 npm run dev
 # Should see:
-# ✓ Local:   http://localhost:5173/
+# ✓ Local:   http://localhost:3000/
 ```
 
 ✅ **Verify Both are Running**:
 - Backend: http://localhost:5000/api/health → should return `{"status":"OK"}`
-- Frontend: http://localhost:5173 → should load home page
+- Frontend: http://localhost:3000 → should load home page
 
 ---
 
@@ -374,7 +374,7 @@ docker run -p 5000:5000 proctor-backend
 - [ ] MongoDB connection successful
 - [ ] Cloudinary credentials working
 - [ ] Backend server running on :5000
-- [ ] Frontend server running on :5173
+- [ ] Frontend server running on :3000
 - [ ] Student registration works
 - [ ] Student login returns JWT token
 - [ ] Exam list loads from backend
@@ -403,7 +403,7 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
 
 | Component | URL | Status |
 |-----------|-----|--------|
-| Frontend Dev | http://localhost:5173 | Local |
+| Frontend Dev | http://localhost:3000 | Local |
 | Backend Dev | http://localhost:5000 | Local |
 | MongoDB | Uses `.env` | Local or Atlas |
 | Cloudinary | Dashboard | Cloud |
@@ -428,7 +428,7 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
 
 ## Next Advanced Features (Optional)
 
-1. **Real-time Monitoring** - Add Socket.IO
+1. **Real-time Monitoring** - REST polling is currently used; add Socket.IO only if you want a future WebSocket upgrade
 2. **Phone Detection** - Integrate YOLOv8
 3. **Email Notifications** - Add Nodemailer
 4. **Payment** - Add Stripe integration

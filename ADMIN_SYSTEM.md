@@ -390,7 +390,7 @@ useEffect(() => {
 }, []);
 ```
 
-**To upgrade to WebSocket (real-time):**
+**To upgrade to WebSocket (future enhancement):**
 1. Add Socket.io to backend
 2. Emit session updates on proctor events
 3. Admin dashboard subscribes to live updates

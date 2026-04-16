@@ -20,7 +20,7 @@ Node.js + Express backend for the AI Smart Exam Proctoring System with MongoDB a
 - **Database**: MongoDB (Atlas or Local)
 - **Storage**: Cloudinary
 - **Authentication**: JWT
-- **Cache/Real-time**: Redis
+- **Cache/Real-time**: Redis (optional cache)
 - **Validation**: Express Validator
 - **Security**: Helmet, CORS
 
@@ -179,7 +179,7 @@ pm2 logs
 ## Performance Optimization
 
 - ✅ Indexed MongoDB queries
-- ✅ Redis caching for frequently accessed data
+- ✅ Redis caching for frequently accessed data (optional)
 - ✅ Cloudinary CDN for snapshot delivery
 - ✅ Request compression with gzip
 - ✅ Connection pooling with MongoDB
@@ -204,7 +204,7 @@ Consider adding:
 ## Next Steps
 
 1. **Integrate with Frontend**: Update frontend API calls to match these endpoints
-2. **Real-time Updates**: Add Socket.IO for live monitoring
+2. **Real-time Updates**: Add Socket.IO for live monitoring (future enhancement; current app uses REST polling)
 3. **Background Jobs**: Add Bull/Agenda for scheduled tasks (email notifications, cleanup)
 4. **Payment Integration**: Add Stripe for exam access control
 5. **Advanced Analytics**: Add aggregation pipelines for stats

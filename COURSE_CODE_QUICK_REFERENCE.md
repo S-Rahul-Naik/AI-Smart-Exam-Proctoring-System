@@ -54,7 +54,7 @@ Admin Dashboard: http://localhost:3000/admin/exams
 ```
 - Click "Questions" on the exam card
 - Click "Add Question"
-- Choose type (MCQ, essay, short-answer, true-false)
+- Choose type (MCQ, true-false)
 - Enter question text, marks
 - Add MCQ options if needed
 - Click "Save Question"
@@ -103,7 +103,7 @@ Admin Dashboard: http://localhost:3000/admin/exams
     exam: ObjectId("69dec12bc34fc13aa0f00d87"),  // Links to exam
     number: 1,
     question: "What is ur name?",
-    type: "short-answer",
+    type: "mcq",
     marks: 1
   },
   {
@@ -111,7 +111,7 @@ Admin Dashboard: http://localhost:3000/admin/exams
     exam: ObjectId("69dec12bc34fc13aa0f00d87"),
     number: 2,
     question: "Who Are you",
-    type: "essay",
+    type: "true-false",
     marks: 1
   },
   // ... 2 more questions
@@ -144,8 +144,8 @@ curl http://localhost:5000/api/exams/69dec12bc34fc13aa0f00d87/questions
 ↓
 {
   questions: [
-    { number: 1, question: "What is ur name?", type: "short-answer", marks: 1 },
-    { number: 2, question: "Who Are you", type: "essay", marks: 1 },
+    { number: 1, question: "What is ur name?", type: "mcq", marks: 1 },
+    { number: 2, question: "Who Are you", type: "true-false", marks: 1 },
     { number: 3, question: "HOw are you", type: "true-false", marks: 1 },
     { number: 4, question: "What is the time complexity...", type: "mcq", marks: 1, options: [...] }
   ]

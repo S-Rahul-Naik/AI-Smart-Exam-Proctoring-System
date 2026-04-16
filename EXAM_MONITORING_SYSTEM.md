@@ -307,7 +307,7 @@ POST   /sessions/{id}/flag               - Flag for manual review
 ✓ **Snapshot Evidence Collection** - Every violation captures visual evidence  
 ✓ **Tamper-Proof Event Log** - Immutable event history  
 ✓ **Admin Audit Trail** - All reviews tracked with timestamps  
-✓ **Real-Time Alerts** - Socket.io notifications for critical events  
+✓ **Real-Time Alerts** - REST-polling alerts for critical events  
 ✓ **Role-Based Access** - Only authorized admins can review  
 
 ---
