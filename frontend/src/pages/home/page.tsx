@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 const features = [
   { icon: 'ri-eye-line', title: 'Real-Time Monitoring', desc: 'Process webcam frames at 1–2 FPS with intelligent AI inference. Monitor hundreds of candidates simultaneously.' },
-  { icon: 'ri-brain-line', title: 'Multi-Modal Detection', desc: 'Detect face absence, multiple faces, gaze direction (center/left/right/down), and mobile phone presence.' },
+  { icon: 'ri-brain-line', title: 'Multi-Modal Detection', desc: 'Comprehensive behavioral monitoring: face absence/blur, multiple faces, gaze deviation, phone/headphone detection, tab switching, fullscreen exit, copy-paste, DevTools access, unusual head movement, low lighting, background changes, and more.' },
   { icon: 'ri-timeline-line', title: 'Temporal Pattern Analysis', desc: '30-second sliding window tracks behavioral frequency, absence duration, and repeated suspicious patterns.' },
   { icon: 'ri-radar-line', title: 'Dynamic Risk Scoring', desc: 'Weighted scoring: phone (30), face missing (20), gaze deviation (8). Includes time-based decay across 30-sec window.' },
   { icon: 'ri-shield-check-line', title: 'Detailed Alerts', desc: 'Every alert includes timestamp, contributing violation events, risk level, and evidence snapshots.' },
