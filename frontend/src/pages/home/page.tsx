@@ -6,7 +6,7 @@ const features = [
   { icon: 'ri-eye-line', title: 'Real-Time Monitoring', desc: 'Process webcam frames at 1–2 FPS with intelligent AI inference. Monitor hundreds of candidates simultaneously.' },
   { icon: 'ri-brain-line', title: 'Multi-Modal Detection', desc: 'Comprehensive behavioral monitoring: face absence/blur, multiple faces, gaze deviation, phone/headphone detection, tab switching, fullscreen exit, copy-paste, DevTools access, unusual head movement, low lighting, background changes, and more.' },
   { icon: 'ri-timeline-line', title: 'Temporal Pattern Analysis', desc: '30-minute rolling window tracks behavioral frequency, absence duration, and repeated suspicious patterns.' },
-  { icon: 'ri-radar-line', title: 'Dynamic Risk Scoring', desc: 'Weighted scoring: phone (30), face missing (20), gaze deviation (8). Includes time-based decay across 30-sec window.' },
+  { icon: 'ri-radar-line', title: 'Dynamic Risk Scoring', desc: 'Weighted scoring: phone (30), face missing (20), gaze deviation (8). Violations accumulate within the 30-minute exam window, with past violations aging out over time.' },
   { icon: 'ri-shield-check-line', title: 'Detailed Alerts', desc: 'Every alert includes timestamp, contributing violation events, risk level, and evidence snapshots.' },
   { icon: 'ri-dashboard-3-line', title: 'Admin Console', desc: 'Live student grid, event timeline, risk trend graphs, evidence snapshots, and prioritized alert queue.' },
 ];
@@ -174,7 +174,7 @@ export default function HomePage() {
             <div>
               <div className="text-teal-400 text-sm font-semibold uppercase tracking-widest mb-3">Temporal Risk Engine</div>
               <h2 className="text-4xl font-black text-white mb-6">Dynamic scoring that evolves over time</h2>
-              <p className="text-[#6b7280] text-base mb-8 leading-relaxed">Unlike static frame analysis, ProctorAI maintains a 30-minute behavioral rolling window. Risk accumulates with violations and decays when behavior stabilizes — modeling true suspicious intent across the full exam duration.</p>
+              <p className="text-[#6b7280] text-base mb-8 leading-relaxed">Unlike static frame analysis, ProctorAI maintains a 30-minute behavioral rolling window. Risk accumulates from all violations within the window period — violations only stop contributing after they age out, modeling true suspicious intent across the full exam duration.</p>
               <div className="space-y-4">
                 {[
                   { label: 'Phone Detected', weight: '30', color: 'bg-red-500', w: '100%' },
