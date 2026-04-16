@@ -252,7 +252,7 @@ const sessionSchema = new mongoose.Schema(
     // Exam answers and scores
     answers: {
       type: Map,
-      of: Number,
+      of: String,
     },
     score: Number,
     examScore: {

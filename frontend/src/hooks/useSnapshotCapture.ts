@@ -17,7 +17,26 @@ const RISK_WEIGHT: Record<string, number> = {
   multiple_faces: 5,
   face_absent: 3,
   gaze_deviation: 2,
+  phone_detected: 5,
+  tab_switch: 4,
+  fullscreen_exit: 4,
+  devtools_open: 5,
+  right_click: 2,
+  copy_paste: 4,
 };
+
+const AI_SNAPSHOT_TYPES = new Set(['gaze_deviation', 'face_absent', 'multiple_faces']);
+const ENHANCED_SNAPSHOT_TYPES = new Set([
+  'phone_detected',
+  'multiple_faces',
+  'face_absent',
+  'gaze_deviation',
+  'tab_switch',
+  'fullscreen_exit',
+  'devtools_open',
+  'right_click',
+  'copy_paste',
+]);
 
 function captureVideoFrame(video: HTMLVideoElement): string | null {
   try {
@@ -84,9 +103,12 @@ export function useSnapshotCapture({ videoRef, aiEvents, focusViolations, enhanc
   useEffect(() => {
     const count = aiEvents.length;
     if (count > prevAiCount.current && count > 0) {
-      const ev = aiEvents[count - 1];
-      const ts = new Date(ev.timestamp).toLocaleTimeString('en-US', { hour12: false });
-      capture(ev.label, 'ai_detection', RISK_WEIGHT[ev.type] ?? 2, ev.id, ts);
+      const newEvents = aiEvents.slice(prevAiCount.current, count);
+      newEvents.forEach((ev) => {
+        if (!AI_SNAPSHOT_TYPES.has(ev.type)) return;
+        const ts = new Date(ev.timestamp).toLocaleTimeString('en-US', { hour12: false });
+        capture(ev.label, 'ai_detection', RISK_WEIGHT[ev.type] ?? 2, ev.id, ts);
+      });
       prevAiCount.current = count;
     }
   }, [aiEvents, capture]);
@@ -95,8 +117,10 @@ export function useSnapshotCapture({ videoRef, aiEvents, focusViolations, enhanc
   useEffect(() => {
     const count = focusViolations.length;
     if (count > prevFocusCount.current && count > 0) {
-      const v = focusViolations[count - 1];
-      capture(v.label, 'focus_violation', v.riskContribution, v.id, v.timestamp);
+      const newViolations = focusViolations.slice(prevFocusCount.current, count);
+      newViolations.forEach((v) => {
+        capture(v.label, 'focus_violation', v.riskContribution, v.id, v.timestamp);
+      });
       prevFocusCount.current = count;
     }
   }, [focusViolations, capture]);
@@ -105,14 +129,22 @@ export function useSnapshotCapture({ videoRef, aiEvents, focusViolations, enhanc
   useEffect(() => {
     const count = enhancedMonitoringEvents.length;
     if (count > prevEnhancedCount.current && count > 0) {
-      const ev = enhancedMonitoringEvents[count - 1];
-      if (ev.type === 'phone_detected') {
-        const ts = ev.timestamp instanceof Date 
+      const newEvents = enhancedMonitoringEvents.slice(prevEnhancedCount.current, count);
+      newEvents.forEach((ev) => {
+        if (!ENHANCED_SNAPSHOT_TYPES.has(ev.type)) return;
+        const ts = ev.timestamp instanceof Date
           ? ev.timestamp.toLocaleTimeString('en-US', { hour12: false })
           : new Date(ev.timestamp).toLocaleTimeString('en-US', { hour12: false });
-        // Phone detection is critical - capture snapshot
-        capture(ev.label || 'Phone Detected', 'ai_detection', 4, ev.id || `phone_${Date.now()}`, ts);
-      }
+        capture(
+          ev.label || ev.type,
+          ev.type === 'tab_switch' || ev.type === 'fullscreen_exit' || ev.type === 'devtools_open' || ev.type === 'right_click' || ev.type === 'copy_paste'
+            ? 'focus_violation'
+            : 'ai_detection',
+          RISK_WEIGHT[ev.type] ?? 4,
+          ev.id || `${ev.type}_${Date.now()}`,
+          ts
+        );
+      });
       prevEnhancedCount.current = count;
     }
   }, [enhancedMonitoringEvents, capture]);

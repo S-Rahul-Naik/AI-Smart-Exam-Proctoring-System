@@ -35,10 +35,13 @@ apiClient.interceptors.response.use(
 export const studentAPI = {
   register: (data: {
     email: string;
+    usn: string;
     firstName: string;
     lastName: string;
     password: string;
     confirmPassword: string;
+    program?: string;
+    year?: number;
   }) => apiClient.post('/students/register', data),
 
   login: (data: { email: string; password: string }) =>
@@ -46,10 +49,10 @@ export const studentAPI = {
 
   getProfile: () => apiClient.get('/students/profile'),
 
-  updateProfile: (data: { firstName: string; lastName: string }) =>
+  updateProfile: (data: { usn?: string; firstName?: string; lastName?: string; program?: string; year?: number }) =>
     apiClient.put('/students/profile', data),
 
-  verifyFace: (faceData: ArrayBuffer, photoType: string = 'signup') =>
+  verifyFace: (faceData: string, photoType: string = 'signup') =>
     apiClient.post('/students/verify-face', { faceData, photoType }),
 
   // Store enrollment photos in MongoDB
@@ -136,7 +139,7 @@ export const sessionAPI = {
   startSession: (sessionId: string) =>
     apiClient.post(`/sessions/${sessionId}/start`, {}),
 
-  submitSession: (sessionId: string, answers: Record<number, number>) =>
+  submitSession: (sessionId: string, answers: Record<number, string>) =>
     apiClient.post(`/sessions/${sessionId}/submit`, { sessionId, answers }),
 
   recordEvents: (
@@ -172,7 +175,7 @@ export const sessionAPI = {
 
   reviewSession: (
     sessionId: string,
-    data: { decision: string; notes: string }
+    data: { decision: string; notes: string; sessionId?: string }
   ) => apiClient.post(`/sessions/${sessionId}/review`, data),
 };
 
@@ -206,13 +209,24 @@ export const adminAPI = {
 
   getAdminProfile: () => apiClient.get('/admins/profile'),
 
+  getStudents: (params?: { status?: string; search?: string }) =>
+    apiClient.get('/admins/students', { params }),
+
+  updateStudentAcademic: (
+    studentId: string,
+    data: { program?: string | null; year?: number | null }
+  ) => apiClient.patch(`/admins/students/${studentId}/academic`, data),
+
   getActiveSessions: () => apiClient.get('/admin/sessions/active'),
 
   getHighRiskAlerts: () =>
     apiClient.get('/alerts', { params: { severity: 'high', resolved: false } }),
 
-  getAnalyticsData: (examId: string) =>
-    apiClient.get(`/admin/analytics/${examId}`),
+  getAnalyticsData: (params?: { examId?: string; startDate?: string; endDate?: string }) =>
+    apiClient.get('/admins/analytics', { params }),
+
+  getResultSessions: () =>
+    apiClient.get('/admins/results/sessions'),
 
   // Session analysis and review
   getSessionAnalysis: (sessionId: string) =>

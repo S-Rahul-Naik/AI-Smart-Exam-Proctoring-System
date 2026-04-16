@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../../../components/feature/AdminLayout';
 import RiskBadge from '../../../components/base/RiskBadge';
 import StatusBadge from '../../../components/base/StatusBadge';
-import { mockAlerts } from '../../../mocks/alerts';
-import { mockAnalytics } from '../../../mocks/analytics';
-import { mockStudents } from '../../../mocks/students';
+import { adminAPI } from '../../../services/api';
 import SessionPDFExport from './components/SessionPDFExport';
 import SessionReplay from './components/SessionReplay';
 import BatchReviewPanel, { BulkDecision } from './components/BatchReviewPanel';
 
 type DetailTab = 'timeline' | 'replay';
 type SessionStatus = 'pending' | 'approved' | 'rejected' | 'flagged';
+type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+const ADMIN_SESSIONS_UPDATED_EVENT = 'admin:sessions-updated';
 
 interface SessionDecision {
   id: string;
@@ -18,29 +19,242 @@ interface SessionDecision {
   note?: string;
 }
 
+interface UISession {
+  id: string;
+  student: string;
+  exam: string;
+  date: string;
+  examScore: number;
+  riskScore: number;
+  riskLevel: RiskLevel;
+  status: SessionStatus;
+}
+
+interface UIAlert {
+  id: string;
+  timestamp: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  riskContribution: number;
+  snapshot?: string;
+}
+
+function isLipMovementEvent(event: { type?: string; label?: string; description?: string }): boolean {
+  const raw = `${event?.type || ''} ${event?.label || ''} ${event?.description || ''}`.toLowerCase();
+  return raw.includes('lip_movement') || raw.includes('lip movement');
+}
+
+const severityRiskMap = {
+  low: 3,
+  medium: 8,
+  high: 15,
+  critical: 20,
+};
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
+const API_ORIGIN = API_BASE_URL.replace(/\/api$/, '');
+
+function isMongoObjectId(value: string): boolean {
+  return /^[a-f0-9]{24}$/i.test(value);
+}
+
+function normalizeSnapshotUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  const trimmed = String(url).trim();
+  if (!trimmed) return undefined;
+  // Legacy placeholder URLs from older sessions are not real files.
+  if (trimmed.startsWith('local-')) return undefined;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) return trimmed;
+  if (trimmed.startsWith('/')) return `${API_ORIGIN}${trimmed}`;
+  return `${API_ORIGIN}/${trimmed}`;
+}
+
+function normalizeRiskLevel(level: unknown, score: number): RiskLevel {
+  if (level === 'critical' || score >= 85) return 'critical';
+  if (level === 'high' || score >= 70) return 'high';
+  if (level === 'medium' || score >= 40) return 'medium';
+  return 'low';
+}
+
+function toUiStatus(session: any): SessionStatus {
+  if (session?.adminReview?.reviewed) {
+    const decision = session?.adminReview?.decision;
+    if (decision === 'approved') return 'approved';
+    if (decision === 'rejected') return 'rejected';
+    if (decision === 'needs_manual_review' || session?.flagged) return 'flagged';
+  }
+
+  if (session?.flagged) return 'pending';
+  if (session?.status === 'flagged') return 'pending';
+  return 'pending';
+}
+
+function mapSessionToUi(session: any): UISession {
+  const fullName = `${session?.student?.firstName || ''} ${session?.student?.lastName || ''}`.trim();
+  const email = String(session?.student?.email || '').trim();
+  const emailLocal = email.includes('@') ? email.split('@')[0] : email;
+  const studentName = fullName || emailLocal || 'Student';
+
+  const examRaw = String(session?.exam?.title || session?.exam?.subject || session?.exam || '').trim();
+  const examName = !examRaw || isMongoObjectId(examRaw) ? 'Exam Session' : examRaw;
+  const riskScore = Number(session?.riskScore || 0);
+  const examScore = Number(session?.examScore?.percentage ?? session?.score ?? 0);
+  const date = new Date(session?.createdAt || session?.startTime || Date.now()).toLocaleDateString();
+
+  return {
+    id: String(session?._id),
+    student: studentName,
+    exam: examName,
+    date,
+    examScore,
+    riskScore,
+    riskLevel: normalizeRiskLevel(session?.riskLevel, riskScore),
+    status: toUiStatus(session),
+  };
+}
+
+function mapResultSessionToUi(row: any): UISession {
+  const riskScore = Number(row?.riskScore || 0);
+  const rawStatus = String(row?.status || 'pending') as SessionStatus;
+  const status: SessionStatus = ['pending', 'approved', 'rejected', 'flagged'].includes(rawStatus)
+    ? rawStatus
+    : 'pending';
+
+  let date = 'N/A';
+  if (row?.date) {
+    const parsed = new Date(row.date);
+    date = Number.isNaN(parsed.getTime()) ? String(row.date) : parsed.toLocaleDateString();
+  }
+
+  return {
+    id: String(row?.id || row?._id || ''),
+    student: String(row?.student || 'Student'),
+    exam: String(row?.exam || 'Exam Session'),
+    date,
+    examScore: Number(row?.examScore || 0),
+    riskScore,
+    riskLevel: normalizeRiskLevel(row?.riskLevel, riskScore),
+    status,
+  };
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(' ').filter(Boolean);
+  const first = parts[0]?.charAt(0)?.toUpperCase() || 'S';
+  const last = parts[1]?.charAt(0)?.toUpperCase() || '';
+  return `${first}${last}`;
+}
+
 export default function AdminSessionsPage() {
-  const [sessions, setSessions] = useState(mockAnalytics.recentSessions);
-  const [selected, setSelected] = useState(mockAnalytics.recentSessions[0]);
+  const [sessions, setSessions] = useState<UISession[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [detailTab, setDetailTab] = useState<DetailTab>('timeline');
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [decisions, setDecisions] = useState<Record<string, SessionDecision>>({});
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warn' | 'error' } | null>(null);
+  const [studentAlerts, setStudentAlerts] = useState<UIAlert[]>([]);
 
-  const student = mockStudents.find(s => s.name === selected.student);
-  const studentAlerts = mockAlerts.filter(a => {
-    if (selected.student === 'Aisha Rahman') return a.studentId === 's001';
-    if (selected.student === 'Priya Nair') return a.studentId === 's005';
-    if (selected.student === 'Yuki Tanaka') return a.studentId === 's007';
-    if (selected.student === 'Omar Al-Farsi') return a.studentId === 's008';
-    return false;
-  });
+  const selected = useMemo(
+    () => sessions.find((session) => session.id === selectedId) || sessions[0] || null,
+    [sessions, selectedId]
+  );
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const resultRes = await adminAPI.getResultSessions();
+      const allRows = resultRes?.data?.sessions || [];
+
+      const nextSessions = allRows
+        .map((row: any) => mapResultSessionToUi(row))
+        .sort((a: UISession, b: UISession) => {
+          const aDate = new Date(a.date).getTime();
+          const bDate = new Date(b.date).getTime();
+          if (!Number.isNaN(aDate) && !Number.isNaN(bDate) && aDate !== bDate) {
+            return bDate - aDate;
+          }
+          return b.riskScore - a.riskScore;
+        });
+
+      setSessions(nextSessions);
+      setSelectedId((prev) => (prev && nextSessions.some((session) => session.id === prev) ? prev : nextSessions[0]?.id || null));
+    } catch (fetchError: any) {
+      setError(fetchError?.response?.data?.error || 'Failed to load sessions');
+      setSessions([]);
+      setSelectedId(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
+
+  useEffect(() => {
+    const fetchSelectedDetails = async () => {
+      if (!selected?.id) {
+        setStudentAlerts([]);
+        return;
+      }
+
+      try {
+        setDetailLoading(true);
+        const [reportRes, analysisRes] = await Promise.all([
+          adminAPI.getMalpracticeReport(selected.id),
+          adminAPI.getSessionAnalysis(selected.id),
+        ]);
+
+        const reportEvents = reportRes?.data?.report?.eventLog || [];
+        const snapshots = analysisRes?.data?.analysis?.evidence?.snapshots || [];
+
+        const mappedAlerts = reportEvents
+          .filter((event: any) => !isLipMovementEvent(event))
+          .map((event: any, index: number) => {
+          const severity = ['low', 'medium', 'high', 'critical'].includes(event?.severity)
+            ? (event.severity as UIAlert['severity'])
+            : 'medium';
+          const eventTime = event?.timestamp ? new Date(event.timestamp) : null;
+          const snapshot = snapshots.find((s: any) => {
+            if (!eventTime || !s?.timestamp) return false;
+            const diff = Math.abs(new Date(s.timestamp).getTime() - eventTime.getTime());
+            return diff <= 120000;
+          });
+
+          const snapshotUrl = normalizeSnapshotUrl(event?.snapshotUrl || snapshot?.url);
+
+          return {
+            id: `${selected.id}-${index}`,
+            timestamp: eventTime ? eventTime.toLocaleTimeString() : 'N/A',
+            description: event?.label || event?.type || 'Suspicious event',
+            severity,
+            riskContribution: severityRiskMap[severity] || 8,
+            snapshot: snapshotUrl,
+          };
+        });
+
+        setStudentAlerts(mappedAlerts);
+      } catch {
+        setStudentAlerts([]);
+      } finally {
+        setDetailLoading(false);
+      }
+    };
+
+    fetchSelectedDetails();
+  }, [selected?.id]);
 
   function showToast(msg: string, type: 'success' | 'warn' | 'error') {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   }
 
-  function getEffectiveStatus(session: typeof sessions[number]): SessionStatus {
+  function getEffectiveStatus(session: UISession): SessionStatus {
     return (decisions[session.id]?.status as SessionStatus) ?? (session.status as SessionStatus);
   }
 
@@ -65,17 +279,66 @@ export default function AdminSessionsPage() {
     setDecisions(prev => ({ ...prev, [id]: { id, status, note } }));
   }
 
-  function handleBulkDecision(decision: BulkDecision, note: string) {
+  async function handleBulkDecision(decision: BulkDecision, note: string) {
     const statusMap: Record<BulkDecision, SessionStatus> = { approve: 'approved', reject: 'rejected', flag: 'flagged' };
     const status = statusMap[decision];
-    checkedIds.forEach(id => applyDecision(id, status, note || undefined));
+
+    const targets = sessions.filter((session) => checkedIds.has(session.id));
+    const results = await Promise.allSettled(
+      targets.map((session) => {
+        if (decision === 'flag') {
+          return adminAPI.flagSessionForReview(session.id, {
+            reason: 'Bulk admin review flag',
+            severity: 'high',
+            notes: note,
+          });
+        }
+
+        return adminAPI.reviewSession(session.id, {
+          sessionId: session.id,
+          decision: decision === 'approve' ? 'approved' : 'rejected',
+          notes: note,
+        } as any);
+      })
+    );
+
+    const successCount = results.filter((result) => result.status === 'fulfilled').length;
+    targets.forEach((session) => applyDecision(session.id, status, note || undefined));
+
+    await fetchSessions();
+    window.dispatchEvent(new Event(ADMIN_SESSIONS_UPDATED_EVENT));
+
     const label = decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'flagged';
     const toastType = decision === 'approve' ? 'success' : decision === 'reject' ? 'error' : 'warn';
-    showToast(`${checkedIds.size} session${checkedIds.size > 1 ? 's' : ''} ${label}`, toastType);
+    showToast(`${successCount} session${successCount > 1 ? 's' : ''} ${label}`, toastType);
     setCheckedIds(new Set());
   }
 
-  function handleSingleDecision(status: SessionStatus) {
+  async function handleSingleDecision(status: SessionStatus) {
+    if (!selected) return;
+
+    try {
+      if (status === 'flagged') {
+        await adminAPI.flagSessionForReview(selected.id, {
+          reason: 'Manual admin review flag',
+          severity: 'high',
+          notes: '',
+        });
+      } else {
+        await adminAPI.reviewSession(selected.id, {
+          sessionId: selected.id,
+          decision: status === 'approved' ? 'approved' : 'rejected',
+          notes: '',
+        } as any);
+      }
+
+      await fetchSessions();
+      window.dispatchEvent(new Event(ADMIN_SESSIONS_UPDATED_EVENT));
+    } catch {
+      showToast('Failed to save decision', 'error');
+      return;
+    }
+
     applyDecision(selected.id, status);
     const label = status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'flagged for review';
     const toastType = status === 'approved' ? 'success' : status === 'rejected' ? 'error' : 'warn';
@@ -119,15 +382,27 @@ export default function AdminSessionsPage() {
             onBulkDecision={handleBulkDecision}
           />
 
+          {loading && (
+            <div className="p-4 bg-[#111318] border border-[#1e2330] rounded-xl text-sm text-[#6b7280]">Loading sessions...</div>
+          )}
+
+          {!loading && error && (
+            <div className="p-4 bg-[#111318] border border-red-500/20 rounded-xl text-sm text-red-400">{error}</div>
+          )}
+
+          {!loading && !error && sessions.length === 0 && (
+            <div className="p-4 bg-[#111318] border border-[#1e2330] rounded-xl text-sm text-[#6b7280]">No sessions available for review.</div>
+          )}
+
           {sessions.map(session => {
             const effectiveStatus = getEffectiveStatus(session);
             const isChecked = checkedIds.has(session.id);
             return (
               <div
                 key={session.id}
-                onClick={() => { setSelected(session); setDetailTab('timeline'); }}
+                onClick={() => { setSelectedId(session.id); setDetailTab('timeline'); }}
                 className={`p-4 bg-[#111318] border rounded-xl cursor-pointer transition-all ${
-                  selected.id === session.id ? 'border-teal-500/50 bg-teal-500/5' :
+                  selected?.id === session.id ? 'border-teal-500/50 bg-teal-500/5' :
                   isChecked ? 'border-teal-500/30 bg-teal-500/3' :
                   'border-[#1e2330] hover:border-[#2d3139]'
                 }`}
@@ -153,7 +428,7 @@ export default function AdminSessionsPage() {
                     </div>
                     <div className="flex items-center gap-3 text-xs">
                       <span className="text-[#6b7280]">Score: <strong className="text-white">{session.examScore}%</strong></span>
-                      <RiskBadge score={session.riskScore} level={session.riskLevel as 'low' | 'medium' | 'high'} />
+                      <RiskBadge score={session.riskScore} level={session.riskLevel} />
                     </div>
                   </div>
                 </div>
@@ -179,11 +454,19 @@ export default function AdminSessionsPage() {
 
         {/* Detail panel */}
         <div className="lg:col-span-2 space-y-5">
+          {!selected && !loading && (
+            <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-6 text-[#6b7280] text-sm">
+              Select a session to view evidence and review details.
+            </div>
+          )}
+
+          {selected && (
+            <>
           {/* Student summary */}
           <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-5">
             <div className="flex items-start gap-5">
-              <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-[#1a1d24]">
-                {student?.avatar && <img src={student.avatar} alt={selected.student} className="w-full h-full object-cover object-top" />}
+              <div className="w-16 h-16 rounded-xl flex-shrink-0 bg-teal-500/15 border border-teal-500/30 text-teal-400 text-xl font-bold flex items-center justify-center">
+                {getInitials(selected.student)}
               </div>
               <div className="flex-1">
                 <div className="flex items-start justify-between gap-3 mb-3">
@@ -191,19 +474,19 @@ export default function AdminSessionsPage() {
                     <h2 className="text-white font-bold text-lg">{selected.student}</h2>
                     <p className="text-[#6b7280] text-sm">{selected.exam} · {selected.date}</p>
                   </div>
-                  <SessionPDFExport session={selected} />
+                  <SessionPDFExport session={selected} alerts={studentAlerts} />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 text-center">
                     <div className="text-2xl font-black text-emerald-400">{selected.examScore}%</div>
                     <div className="text-xs text-[#6b7280]">Exam Score</div>
                   </div>
-                  <div className={`${selected.riskLevel === 'high' ? 'bg-red-500/10 border-red-500/20' : selected.riskLevel === 'medium' ? 'bg-amber-500/10 border-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/20'} border rounded-lg p-3 text-center`}>
-                    <div className={`text-2xl font-black ${selected.riskLevel === 'high' ? 'text-red-400' : selected.riskLevel === 'medium' ? 'text-amber-400' : 'text-emerald-400'}`}>{selected.riskScore}</div>
+                  <div className={`${selected.riskLevel === 'high' || selected.riskLevel === 'critical' ? 'bg-red-500/10 border-red-500/20' : selected.riskLevel === 'medium' ? 'bg-amber-500/10 border-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/20'} border rounded-lg p-3 text-center`}>
+                    <div className={`text-2xl font-black ${selected.riskLevel === 'high' || selected.riskLevel === 'critical' ? 'text-red-400' : selected.riskLevel === 'medium' ? 'text-amber-400' : 'text-emerald-400'}`}>{selected.riskScore}</div>
                     <div className="text-xs text-[#6b7280]">Risk Score</div>
                   </div>
                   <div className="bg-[#1a1d24] border border-[#2d3139] rounded-lg p-3 text-center">
-                    <div className="text-2xl font-black text-white">{studentAlerts.length}</div>
+                    <div className="text-2xl font-black text-white">{detailLoading ? '...' : studentAlerts.length}</div>
                     <div className="text-xs text-[#6b7280]">Events</div>
                   </div>
                 </div>
@@ -234,13 +517,18 @@ export default function AdminSessionsPage() {
           {detailTab === 'timeline' && (
             <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-5">
               <h3 className="text-white font-semibold text-sm mb-4">Event Timeline</h3>
-              {studentAlerts.length > 0 ? (
+              {detailLoading && (
+                <div className="text-center py-8 text-[#4b5563]">
+                  <span className="text-sm">Loading event evidence...</span>
+                </div>
+              )}
+              {!detailLoading && studentAlerts.length > 0 ? (
                 <div className="space-y-4">
                   {studentAlerts.map((alert, i) => (
                     <div key={alert.id} className="flex gap-4">
                       <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 flex items-center justify-center rounded-full flex-shrink-0 ${alert.severity === 'high' ? 'bg-red-500/20' : 'bg-amber-500/20'}`}>
-                          <i className={`ri-alert-line text-sm ${alert.severity === 'high' ? 'text-red-400' : 'text-amber-400'}`} />
+                        <div className={`w-8 h-8 flex items-center justify-center rounded-full flex-shrink-0 ${alert.severity === 'high' || alert.severity === 'critical' ? 'bg-red-500/20' : 'bg-amber-500/20'}`}>
+                          <i className={`ri-alert-line text-sm ${alert.severity === 'high' || alert.severity === 'critical' ? 'text-red-400' : 'text-amber-400'}`} />
                         </div>
                         {i < studentAlerts.length - 1 && <div className="w-px flex-1 bg-[#1e2330] mt-2" />}
                       </div>
@@ -251,19 +539,29 @@ export default function AdminSessionsPage() {
                             <div className="text-[#4b5563] text-xs mt-0.5">{alert.timestamp} · +{alert.riskContribution} risk</div>
                           </div>
                           {alert.snapshot && (
-                            <img src={alert.snapshot} alt="evidence" className="w-24 h-14 object-cover object-top rounded-lg flex-shrink-0" />
+                            <img
+                              src={alert.snapshot}
+                              alt="evidence"
+                              loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src =
+                                  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="56"><rect width="100%" height="100%" fill="%23111a24"/><text x="50%" y="50%" fill="%236b7280" font-size="10" text-anchor="middle" dominant-baseline="middle">no image</text></svg>';
+                              }}
+                              className="w-24 h-14 object-cover object-top rounded-lg flex-shrink-0"
+                            />
                           )}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
+              ) : !detailLoading ? (
                 <div className="text-center py-8 text-[#4b5563]">
                   <i className="ri-checkbox-circle-line text-2xl mb-2 block text-emerald-500/40" />
                   <span className="text-sm">No behavioral events recorded</span>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
@@ -335,6 +633,8 @@ export default function AdminSessionsPage() {
                 Undo
               </button>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

@@ -27,7 +27,7 @@ export function ProtectedRoute({ element, requiredRole }: ProtectedRouteProps) {
   }
 
   if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to={userRole === 'admin' ? '/admin/monitoring' : '/home'} replace />;
+    return <Navigate to={userRole === 'admin' ? '/admin/dashboard' : '/home'} replace />;
   }
 
   return element;

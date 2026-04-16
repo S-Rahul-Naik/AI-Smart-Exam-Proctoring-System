@@ -4,12 +4,14 @@ import {
   getAdminProfile,
   getStudents,
   getStudentById,
+  updateStudentAcademic,
   getActiveSessions,
   getSessionById,
   reviewSession,
   getAnalyticsData,
   getHighRiskAlerts,
   getExams,
+  getResultSessions,
   resolveAlert,
 } from '../controllers/adminController.js';
 import { authenticate } from '../middleware/auth.js';
@@ -23,6 +25,7 @@ router.get('/profile', authenticate, getAdminProfile);
 // ===== STUDENT MANAGEMENT =====
 router.get('/students', authenticate, getStudents);
 router.get('/students/:studentId', authenticate, getStudentById);
+router.patch('/students/:studentId/academic', authenticate, updateStudentAcademic);
 
 // ===== SESSION MONITORING =====
 router.get('/sessions/active', authenticate, getActiveSessions);
@@ -38,5 +41,8 @@ router.get('/analytics', authenticate, getAnalyticsData);
 
 // ===== EXAMS =====
 router.get('/exams', authenticate, getExams);
+
+// ===== RESULTS & EVALUATION =====
+router.get('/results/sessions', authenticate, getResultSessions);
 
 export default router;

@@ -13,6 +13,19 @@ import { useBackgroundFaceVerification } from '../../../hooks/useBackgroundFaceV
 import { sessionAPI, examAPI, studentAPI } from '../../../services/api';
 import { useAuth } from '../../../hooks/useAuth';
 
+function getStoredExamDurationSeconds(): number {
+  const examSessionStr = sessionStorage.getItem('examSession');
+  if (!examSessionStr) return 0;
+
+  try {
+    const examSession = JSON.parse(examSessionStr);
+    const durationMinutes = Number(examSession?.exam?.duration);
+    return Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes * 60 : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export default function ExamMonitoringPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -36,8 +49,8 @@ export default function ExamMonitoringPage() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(10800);
-  const [answers, setAnswers] = useState<Record<number, any>>({});
+  const [timeLeft, setTimeLeft] = useState(() => getStoredExamDurationSeconds());
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [currentQ, setCurrentQ] = useState(0);
   const [showFeedback, setShowFeedback] = useState<string | null>(null);
@@ -55,6 +68,8 @@ export default function ExamMonitoringPage() {
   const hasLoggedEndRef = useRef(false);
   const hasMalpracticeLoggedRef = useRef(false);
   const hasTriedVerificationRef = useRef(false);
+  const hasAutoSubmittedRef = useRef(false);
+  const hasStartedSessionRef = useRef(false);
   
   // Risk score tracking for admin alerts
   const riskScoresRef = useRef<Record<string, number>>({ current_student: proctorState.riskScore });
@@ -112,21 +127,50 @@ export default function ExamMonitoringPage() {
     fetchExamQuestions();
   }, [examId]);
 
+  // Load exam duration from backend if it is not already stored in session data.
+  useEffect(() => {
+    if (timeLeft > 0 || !examId) return;
+
+    const loadExamDuration = async () => {
+      try {
+        const response = await examAPI.getExamById(examId);
+        const durationMinutes = Number(response.data?.exam?.duration);
+        if (Number.isFinite(durationMinutes) && durationMinutes > 0) {
+          setTimeLeft(durationMinutes * 60);
+        }
+      } catch (error) {
+        console.error('❌ Failed to load exam duration:', error);
+      }
+    };
+
+    loadExamDuration();
+  }, [examId, timeLeft]);
+
   // Start exam session
   useEffect(() => {
+    if (hasStartedSessionRef.current || timeLeft <= 0) return;
+
     const startExamSession = async () => {
       if (!examId) return;
       try {
-        console.log('🔄 Starting exam session for examId:', examId);
-        const response = await sessionAPI.startSession(examId);
-        const newSessionId = response.data?.sessionId || response.data?.session?._id;
-        if (newSessionId) {
-          console.log('✅ Session created:', newSessionId);
-          setSessionId(newSessionId);
-          setExamStarted(true);
-        } else {
-          console.error('❌ No session ID in response:', response.data);
+        console.log('🔄 Initializing exam session for examId:', examId);
+        const initResponse = await sessionAPI.initializeSession(examId);
+        const initiatedSessionId = initResponse.data?.session?._id || initResponse.data?.sessionId;
+
+        if (!initiatedSessionId) {
+          console.error('❌ No session ID returned from initializeSession:', initResponse.data);
+          return;
         }
+
+        console.log('🔄 Starting exam session for sessionId:', initiatedSessionId);
+        const startResponse = await sessionAPI.startSession(initiatedSessionId);
+        const activeSessionId = startResponse.data?.session?._id || initiatedSessionId;
+
+        console.log('✅ Session ready:', activeSessionId);
+        setSessionId(activeSessionId);
+        sessionStorage.setItem('sessionId', activeSessionId);
+        hasStartedSessionRef.current = true;
+        setExamStarted(true);
       } catch (error: any) {
         console.error('❌ Failed to start session:', {
           examId,
@@ -138,7 +182,7 @@ export default function ExamMonitoringPage() {
     };
 
     startExamSession();
-  }, [examId]);
+  }, [examId, timeLeft]);
 
   // Load enrollment photos for face matching
   useEffect(() => {
@@ -427,6 +471,8 @@ export default function ExamMonitoringPage() {
 
   // Start exam
   useEffect(() => {
+    if (timeLeft <= 0) return;
+
     const timer = setTimeout(() => {
       setExamStarted(true);
     }, 800);
@@ -462,14 +508,33 @@ export default function ExamMonitoringPage() {
   useEffect(() => {
     if (autoSubmitCountdown === null) return;
     if (autoSubmitCountdown <= 0) {
-      // Stop continuous face matching before navigation
-      continuousFaceMatching.stopMatching();
-      navigate('/exam/results');
+      const finalizeAutoSubmit = async () => {
+        // Stop continuous face matching before submission/navigation
+        continuousFaceMatching.stopMatching();
+
+        if (sessionId && !hasAutoSubmittedRef.current) {
+          hasAutoSubmittedRef.current = true;
+          try {
+            await sessionAPI.submitSession(sessionId, answers);
+          } catch (submitError) {
+            console.error('Auto-submit countdown submission failed:', submitError);
+          }
+        }
+
+        if (sessionId) {
+          sessionStorage.setItem('sessionId', sessionId);
+          navigate(`/exam/results?sessionId=${sessionId}`);
+        } else {
+          navigate('/exam/results');
+        }
+      };
+
+      finalizeAutoSubmit();
       return;
     }
     const t = setTimeout(() => setAutoSubmitCountdown(c => (c ?? 1) - 1), 1000);
     return () => clearTimeout(t);
-  }, [autoSubmitCountdown, navigate]);
+  }, [autoSubmitCountdown, navigate, sessionId, answers]);
 
   // Cleanup continuous face matching on unmount
   useEffect(() => {
@@ -520,6 +585,12 @@ export default function ExamMonitoringPage() {
     const devtoolsDetected = focusLock.violations?.some(v => v.type === 'devtools_open');
     if (devtoolsDetected) {
       criticalViolations.push('devtools_open');
+    }
+
+    // 5. Auto-submit if tab switching occurs 2 or more times
+    const tabSwitchCount = focusLock.violations?.filter(v => v.type === 'tab_switch').length || 0;
+    if (tabSwitchCount >= 2) {
+      criticalViolations.push('tab_switch');
     }
     
     // If any critical violation detected, trigger auto-submit
@@ -572,6 +643,8 @@ export default function ExamMonitoringPage() {
     : 'bg-[#1a1d24] border-[#2d3139]';
 
   const { riskScore, riskLevel, recentEvents } = proctorState;
+  const getQuestionKey = (index: number) => questions[index]?._id || String(index);
+  const answeredCount = questions.filter((q, i) => answers[getQuestionKey(i)] !== undefined).length;
 
   const gazeIcon = proctorState.gazeDirection === 'left' ? 'ri-arrow-left-line' : proctorState.gazeDirection === 'right' ? 'ri-arrow-right-line' : proctorState.gazeDirection === 'down' ? 'ri-arrow-down-line' : 'ri-focus-3-line';
   const gazeOk = proctorState.isReady && proctorState.gazeDirection === 'center';
@@ -607,13 +680,23 @@ export default function ExamMonitoringPage() {
       
       // Redirect to results
       setTimeout(() => {
-        navigate('/exam/results');
+        if (sessionId) {
+          sessionStorage.setItem('sessionId', sessionId);
+          navigate(`/exam/results?sessionId=${sessionId}`);
+        } else {
+          navigate('/exam/results');
+        }
       }, 1000);
     } catch (error) {
       console.error('Failed to auto-submit exam:', error);
       // Still redirect even if submission fails
       setTimeout(() => {
-        navigate('/exam/results');
+        if (sessionId) {
+          sessionStorage.setItem('sessionId', sessionId);
+          navigate(`/exam/results?sessionId=${sessionId}`);
+        } else {
+          navigate('/exam/results');
+        }
       }, 1000);
     }
   };
@@ -624,7 +707,8 @@ export default function ExamMonitoringPage() {
     setIsSubmitting(true);
     try {
       await sessionAPI.submitSession(sessionId, answers);
-      navigate('/exam/results');
+      sessionStorage.setItem('sessionId', sessionId);
+      navigate(`/exam/results?sessionId=${sessionId}`);
     } catch (error) {
       console.error('Failed to submit exam:', error);
       alert('Failed to submit exam. Please try again.');
@@ -659,6 +743,7 @@ export default function ExamMonitoringPage() {
                 {detectedViolationType === 'phone_detected' && '📱 Phone Detected in Exam'}
                 {detectedViolationType === 'multiple_faces' && '👥 Multiple Faces Detected'}
                 {detectedViolationType === 'devtools_open' && '⚙️ Developer Tools Detected'}
+                {detectedViolationType === 'tab_switch' && '🔄 Tab Switching Detected (2 times)'}
               </div>
               <div className="text-[#9ca3af] text-xs mt-2">
                 {detectedViolationType === 'phone_detected' && 'A mobile device was detected during the exam, which is strictly prohibited.'}
@@ -670,7 +755,7 @@ export default function ExamMonitoringPage() {
             {/* Final stats */}
             <div className="grid grid-cols-3 gap-3 mb-5">
               <div className="bg-[#1a1d24] border border-[#2d3139] rounded-xl p-3 text-center">
-                <div className="text-white font-bold text-lg">{Object.keys(answers).length}/{questions.length}</div>
+                <div className="text-white font-bold text-lg">{answeredCount}/{questions.length}</div>
                 <div className="text-[#4b5563] text-xs">Answered</div>
               </div>
               <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
@@ -731,7 +816,7 @@ export default function ExamMonitoringPage() {
             {/* Final stats */}
             <div className="grid grid-cols-3 gap-3 mb-5">
               <div className="bg-[#1a1d24] border border-[#2d3139] rounded-xl p-3 text-center">
-                <div className="text-white font-bold text-lg">{Object.keys(answers).length}/{questions.length}</div>
+                <div className="text-white font-bold text-lg">{answeredCount}/{questions.length}</div>
                 <div className="text-[#4b5563] text-xs">Answered</div>
               </div>
               <div className={`border rounded-xl p-3 text-center ${riskLevel === 'high' ? 'bg-red-500/10 border-red-500/20' : riskLevel === 'medium' ? 'bg-amber-500/10 border-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
@@ -967,7 +1052,7 @@ export default function ExamMonitoringPage() {
                   onClick={() => setCurrentQ(i)}
                   className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold cursor-pointer transition-all ${
                     currentQ === i ? 'bg-teal-500 text-white'
-                    : answers[i + 1] !== undefined ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                    : answers[getQuestionKey(i)] !== undefined ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
                     : 'bg-[#111318] border border-[#1e2330] text-[#6b7280] hover:text-white'
                   }`}
                 >
@@ -975,7 +1060,7 @@ export default function ExamMonitoringPage() {
                 </button>
               ))}
               <span className="ml-2 text-[#4b5563] text-xs">
-                {Object.keys(answers).length}/{questions.length} answered
+                {answeredCount}/{questions.length} answered
               </span>
             </div>
 
@@ -1015,19 +1100,21 @@ export default function ExamMonitoringPage() {
                           key={oi}
                           onClick={() => {
                             if (!(examStarted && verificationStep === 'verifying')) {
-                              setAnswers(prev => ({ ...prev, [currentQ]: oi }));
+                              const qKey = getQuestionKey(currentQ);
+                              const optionValue = typeof opt === 'string' ? opt : (opt.id ?? opt.text);
+                              setAnswers(prev => ({ ...prev, [qKey]: optionValue }));
                             }
                           }}
                           className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
                             examStarted && verificationStep === 'verifying' ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
                           } ${
-                            answers[currentQ] === oi
+                            answers[getQuestionKey(currentQ)] === (typeof opt === 'string' ? opt : (opt.id ?? opt.text))
                               ? 'bg-teal-500/10 border-teal-500/40 text-white'
                               : 'bg-[#0a0c10] border-[#1e2330] text-[#9ca3af] hover:border-[#2d3139] hover:text-white'
                           }`}
                         >
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${answers[currentQ] === oi ? 'border-teal-500 bg-teal-500' : 'border-[#4b5563]'}`}>
-                            {answers[currentQ] === oi && <div className="w-2 h-2 rounded-full bg-white" />}
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${answers[getQuestionKey(currentQ)] === (typeof opt === 'string' ? opt : (opt.id ?? opt.text)) ? 'border-teal-500 bg-teal-500' : 'border-[#4b5563]'}`}>
+                            {answers[getQuestionKey(currentQ)] === (typeof opt === 'string' ? opt : (opt.id ?? opt.text)) && <div className="w-2 h-2 rounded-full bg-white" />}
                           </div>
                           <span className="text-sm">{typeof opt === 'string' ? opt : opt.text}</span>
                         </div>
@@ -1043,19 +1130,20 @@ export default function ExamMonitoringPage() {
                           key={oi}
                           onClick={() => {
                             if (!(examStarted && verificationStep === 'verifying')) {
-                              setAnswers(prev => ({ ...prev, [currentQ]: opt }));
+                              const qKey = getQuestionKey(currentQ);
+                              setAnswers(prev => ({ ...prev, [qKey]: opt.toLowerCase() }));
                             }
                           }}
                           className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
                             examStarted && verificationStep === 'verifying' ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
                           } ${
-                            answers[currentQ] === opt
+                            answers[getQuestionKey(currentQ)] === opt.toLowerCase()
                               ? 'bg-teal-500/10 border-teal-500/40 text-white'
                               : 'bg-[#0a0c10] border-[#1e2330] text-[#9ca3af] hover:border-[#2d3139] hover:text-white'
                           }`}
                         >
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${answers[currentQ] === opt ? 'border-teal-500 bg-teal-500' : 'border-[#4b5563]'}`}>
-                            {answers[currentQ] === opt && <div className="w-2 h-2 rounded-full bg-white" />}
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${answers[getQuestionKey(currentQ)] === opt.toLowerCase() ? 'border-teal-500 bg-teal-500' : 'border-[#4b5563]'}`}>
+                            {answers[getQuestionKey(currentQ)] === opt.toLowerCase() && <div className="w-2 h-2 rounded-full bg-white" />}
                           </div>
                           <span className="text-sm">{opt}</span>
                         </div>
@@ -1066,10 +1154,11 @@ export default function ExamMonitoringPage() {
                   {/* Short Answer */}
                   {questions[currentQ]?.type === 'short-answer' ? (
                     <textarea
-                      value={answers[currentQ] || ''}
+                      value={answers[getQuestionKey(currentQ)] || ''}
                       onChange={(e) => {
                         if (!(examStarted && verificationStep === 'verifying')) {
-                          setAnswers(prev => ({ ...prev, [currentQ]: e.target.value }));
+                          const qKey = getQuestionKey(currentQ);
+                          setAnswers(prev => ({ ...prev, [qKey]: e.target.value }));
                         }
                       }}
                       disabled={examStarted && verificationStep === 'verifying'}
@@ -1081,10 +1170,11 @@ export default function ExamMonitoringPage() {
                   {/* Essay */}
                   {questions[currentQ]?.type === 'essay' ? (
                     <textarea
-                      value={answers[currentQ] || ''}
+                      value={answers[getQuestionKey(currentQ)] || ''}
                       onChange={(e) => {
                         if (!(examStarted && verificationStep === 'verifying')) {
-                          setAnswers(prev => ({ ...prev, [currentQ]: e.target.value }));
+                          const qKey = getQuestionKey(currentQ);
+                          setAnswers(prev => ({ ...prev, [qKey]: e.target.value }));
                         }
                       }}
                       disabled={examStarted && verificationStep === 'verifying'}
@@ -1335,7 +1425,7 @@ export default function ExamMonitoringPage() {
             </div>
             <h2 className="text-white font-bold text-xl mb-2">Submit Exam?</h2>
             <p className="text-[#6b7280] text-sm mb-3">
-              You have answered {Object.keys(answers).length} of {questions.length} questions.
+              You have answered {answeredCount} of {questions.length} questions.
             </p>
             <div className={`flex items-center justify-center gap-2 text-sm font-semibold mb-3 ${statusColor}`}>
               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${riskLevel === 'high' ? 'bg-red-400' : riskLevel === 'medium' ? 'bg-amber-400' : 'bg-emerald-400'}`} />

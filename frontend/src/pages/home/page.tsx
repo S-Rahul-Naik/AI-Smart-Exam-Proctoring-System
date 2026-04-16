@@ -1,4 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 
 const features = [
   { icon: 'ri-eye-line', title: 'Real-Time Monitoring', desc: 'Process webcam frames at 1–2 FPS with low latency AI inference. Monitor hundreds of candidates simultaneously.' },
@@ -6,7 +8,7 @@ const features = [
   { icon: 'ri-timeline-line', title: 'Temporal Pattern Analysis', desc: '30-second sliding window tracks behavioral frequency, absence duration, and repeated suspicious patterns.' },
   { icon: 'ri-radar-line', title: 'Dynamic Risk Scoring', desc: 'Weighted scoring: phone (×5), face missing (×3), gaze deviation (×2). Includes time-based decay.' },
   { icon: 'ri-shield-check-line', title: 'Explainable Alerts', desc: 'Every alert includes reason, timestamp, contributing signals, and human-readable explanation.' },
-  { icon: 'ri-dashboard-3-line', title: 'Admin Dashboard', desc: 'Live student grid, event timeline, risk trend graphs, evidence snapshots, and prioritized alert queue.' },
+  { icon: 'ri-dashboard-3-line', title: 'Admin Console', desc: 'Live student grid, event timeline, risk trend graphs, evidence snapshots, and prioritized alert queue.' },
 ];
 
 const stats = [
@@ -25,8 +27,47 @@ const steps = [
   { num: '06', title: 'Admin Review & Decision', desc: 'Session review with evidence snapshots, event timeline, and manual approve/flag/reject decision.' },
 ];
 
+const navSections = [
+  { label: 'Features', id: 'features' },
+  { label: 'How It Works', id: 'how-it-works' },
+  { label: 'Technology', id: 'technology' },
+  { label: 'Get Started', id: 'pricing' },
+];
+
 export default function HomePage() {
+  const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated, userRole } = useAuth();
+
+  const scrollToSection = (sectionId: string, updateHash: boolean = true) => {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+
+    const headerOffset = 80;
+    const top = target.getBoundingClientRect().top + window.scrollY - headerOffset;
+    window.scrollTo({ top, behavior: 'smooth' });
+
+    if (updateHash) {
+      window.history.replaceState(null, '', `${location.pathname}#${sectionId}`);
+    }
+  };
+
+  useEffect(() => {
+    const sectionId = location.hash.replace('#', '');
+    if (!sectionId) return;
+
+    // Delay ensures layout is painted before measuring target position.
+    const t = setTimeout(() => scrollToSection(sectionId, false), 60);
+    return () => clearTimeout(t);
+  }, [location.hash]);
+
+  const goToAdminConsole = () => {
+    if (isAuthenticated && userRole === 'admin') {
+      navigate('/admin/dashboard');
+      return;
+    }
+    navigate('/login?role=admin');
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0c10] text-white font-['Inter',sans-serif]">
@@ -35,18 +76,29 @@ export default function HomePage() {
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 backdrop-blur-md bg-[#0a0c10]/80">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-8">
-          <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2.5 text-left cursor-pointer"
+          >
             <img src="https://public.readdy.ai/ai/img_res/bf8ee180-749c-43bb-8a55-d2dd1e2b7747.png" alt="ProctorAI" className="w-8 h-8 object-contain" />
             <span className="font-bold text-lg tracking-tight">ProctorAI</span>
-          </div>
+          </button>
           <div className="hidden md:flex items-center gap-6 flex-1">
-            {['Features', 'How It Works', 'Technology', 'Pricing'].map(item => (
-              <a key={item} href={`#${item.toLowerCase().replace(' ', '-')}`} className="text-[#9ca3af] hover:text-white text-sm transition-colors cursor-pointer">{item}</a>
+            {navSections.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => scrollToSection(item.id)}
+                className="text-[#9ca3af] hover:text-white text-sm transition-colors cursor-pointer"
+              >
+                {item.label}
+              </button>
             ))}
           </div>
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/login')} className="text-[#9ca3af] hover:text-white text-sm transition-colors cursor-pointer whitespace-nowrap">Sign In</button>
-            <button onClick={() => navigate('/admin/monitoring')} className="bg-teal-500 hover:bg-teal-400 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap">Admin Console</button>
+            <button onClick={goToAdminConsole} className="bg-teal-500 hover:bg-teal-400 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap">Admin Console</button>
           </div>
         </div>
       </nav>
@@ -64,7 +116,7 @@ export default function HomePage() {
         <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-center">
           <div className="inline-flex items-center gap-2 bg-teal-500/10 border border-teal-500/20 rounded-full px-4 py-1.5 mb-8">
             <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse flex-shrink-0" />
-            <span className="text-teal-400 text-xs font-medium">IEEE-Level Research Platform · Multi-Modal Temporal AI</span>
+            <span className="text-teal-400 text-xs font-medium">Multi-Modal Temporal AI</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 leading-none">
             <span className="text-white">AI Smart Exam</span>
@@ -76,11 +128,11 @@ export default function HomePage() {
             Detect, score, and explain suspicious behavior with explainable AI alerts.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={() => navigate('/exam/precheck')} className="bg-teal-500 hover:bg-teal-400 text-white font-bold px-8 py-4 rounded-xl text-base transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shadow-lg shadow-teal-500/25">
+            <button onClick={() => navigate('/login')} className="bg-teal-500 hover:bg-teal-400 text-white font-bold px-8 py-4 rounded-xl text-base transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shadow-lg shadow-teal-500/25">
               <i className="ri-play-circle-line" /> Start as Student
             </button>
-            <button onClick={() => navigate('/admin/monitoring')} className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-8 py-4 rounded-xl text-base transition-all cursor-pointer whitespace-nowrap flex items-center gap-2">
-              <i className="ri-dashboard-3-line" /> Admin Dashboard
+            <button onClick={goToAdminConsole} className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-8 py-4 rounded-xl text-base transition-all cursor-pointer whitespace-nowrap flex items-center gap-2">
+              <i className="ri-dashboard-3-line" /> Admin Console
             </button>
           </div>
           {/* Stats bar */}
@@ -116,7 +168,7 @@ export default function HomePage() {
       </section>
 
       {/* Risk scoring visual */}
-      <section className="py-20 bg-[#0d0f14] border-y border-[#1e2330]">
+      <section id="technology" className="py-20 bg-[#0d0f14] border-y border-[#1e2330]">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
@@ -195,13 +247,13 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-gradient-to-r from-teal-900/40 to-emerald-900/20 border-t border-[#1e2330]">
+      <section id="pricing" className="py-20 bg-gradient-to-r from-teal-900/40 to-emerald-900/20 border-t border-[#1e2330]">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <h2 className="text-4xl font-black text-white mb-4">Ready to monitor smarter?</h2>
-          <p className="text-[#9ca3af] text-lg mb-10">Set up your first proctored exam in minutes. Full IEEE-standard behavioral analysis from day one.</p>
+          <p className="text-[#9ca3af] text-lg mb-10">Set up your first proctored exam in minutes.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={() => navigate('/admin/monitoring')} className="bg-teal-500 hover:bg-teal-400 text-white font-bold px-8 py-4 rounded-xl text-base transition-all cursor-pointer whitespace-nowrap">Launch Admin Console</button>
-            <button onClick={() => navigate('/exam/precheck')} className="border border-[#2d3139] text-white font-semibold px-8 py-4 rounded-xl text-base transition-all hover:border-teal-500/40 cursor-pointer whitespace-nowrap">Student Demo</button>
+            <button onClick={goToAdminConsole} className="bg-teal-500 hover:bg-teal-400 text-white font-bold px-8 py-4 rounded-xl text-base transition-all cursor-pointer whitespace-nowrap">Launch Admin Console</button>
+            <button onClick={() => navigate('/login')} className="border border-[#2d3139] text-white font-semibold px-8 py-4 rounded-xl text-base transition-all hover:border-teal-500/40 cursor-pointer whitespace-nowrap">Start as Student</button>
           </div>
         </div>
       </section>
@@ -215,7 +267,7 @@ export default function HomePage() {
               <span className="font-bold text-white">ProctorAI</span>
               <span className="text-[#4b5563] text-sm">· AI Smart Exam Proctoring System</span>
             </div>
-            <div className="text-[#4b5563] text-sm">© 2026 ProctorAI · IEEE Research Demonstration · Multi-Modal Temporal Risk Analysis</div>
+            <div className="text-[#4b5563] text-sm">© 2026 ProctorAI · Multi-Modal Temporal Risk Analysis</div>
           </div>
         </div>
       </footer>

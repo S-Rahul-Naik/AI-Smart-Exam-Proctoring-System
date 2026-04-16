@@ -1,10 +1,12 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { sessionAPI } from '../../../services/api';
+import { useAuth } from '../../../hooks/useAuth';
 
 export default function ExamResultsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -16,7 +18,8 @@ export default function ExamResultsPage() {
         if (sessionId) {
           const response = await sessionAPI.getSessionDetails(sessionId);
           console.log('Session data:', response);
-          setSession(response?.session || response);
+          const sessionData = response?.data?.session || null;
+          setSession(sessionData);
         }
       } catch (error) {
         console.error('Failed to fetch session data:', error);
@@ -35,15 +38,57 @@ export default function ExamResultsPage() {
   
   // Get scores from session data
   const examScoreObj = session?.examScore || {};
-  const examMarksObtained = examScoreObj.obtained || 0;
-  const examTotalMarks = examScoreObj.total || 100;
-  const examPercentage = examScoreObj.percentage || 0;
+  const examMarksObtained =
+    typeof examScoreObj.obtained === 'number'
+      ? examScoreObj.obtained
+      : typeof session?.score === 'number'
+      ? session.score
+      : 0;
+  const examTotalMarks =
+    typeof examScoreObj.total === 'number' && examScoreObj.total > 0
+      ? examScoreObj.total
+      : 100;
+  const examPercentage =
+    typeof examScoreObj.percentage === 'number'
+      ? examScoreObj.percentage
+      : examTotalMarks > 0
+      ? Math.round((examMarksObtained / examTotalMarks) * 100)
+      : 0;
   
   const riskScore = session?.riskScore ?? 0;
   const riskLevel = session?.riskLevel || 'low';
 
-  // Duration in minutes
-  const durationMinutes = session?.duration ? Math.floor(session.duration / 60000) : 0;
+  const startMs = session?.startTime ? new Date(session.startTime).getTime() : 0;
+  const endMs =
+    (session?.endTime ? new Date(session.endTime).getTime() : 0) ||
+    (session?.autoSubmitTimestamp ? new Date(session.autoSubmitTimestamp).getTime() : 0);
+  const derivedDuration = startMs > 0 && endMs > startMs ? endMs - startMs : 0;
+  const durationMs =
+    typeof session?.duration === 'number' && session.duration > 0
+      ? session.duration
+      : derivedDuration;
+  const formatDuration = (ms: number) => {
+    if (!ms || ms <= 0) return 'N/A';
+    const totalSeconds = Math.floor(ms / 1000);
+    if (totalSeconds < 60) {
+      return `${totalSeconds} seconds`;
+    }
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return seconds > 0 ? `${minutes} min ${seconds} sec` : `${minutes} minutes`;
+  };
+
+  const studentUsn = user?.usn || session?.student?.usn || session?.usn || 'N/A';
+  const examDate =
+    (session?.startTime ? new Date(session.startTime).toLocaleDateString() : 'N/A');
+  const displayStatus =
+    isAutoSubmitted
+      ? 'Auto-Submitted'
+      : isFlaggedForMalpractice
+      ? 'Flagged'
+      : session?.status
+      ? String(session.status).replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+      : 'Pending Admin Review';
 
   return (
     <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center font-['Inter',sans-serif] py-10">
@@ -155,13 +200,13 @@ export default function ExamResultsPage() {
             </div>
           </div>
 
-          {/* Exam Details */}
+          {/* Result Details */}
           <div className="bg-[#0a0c10] border border-[#1e2330] rounded-xl p-4 mb-6 text-left space-y-2">
             {[
-              { label: 'Exam', val: session?.exam?.title || 'Exam' },
-              { label: 'Date', val: session?.exam?.date || 'N/A' },
-              { label: 'Duration', val: `${durationMinutes} minutes` },
-              { label: 'Status', val: isAutoSubmitted ? 'Auto-Submitted' : isFlaggedForMalpractice ? 'Flagged' : 'Pending Admin Review' },
+              { label: 'USN', val: studentUsn },
+              { label: 'Date', val: examDate },
+              { label: 'Duration', val: formatDuration(durationMs) },
+              { label: 'Status', val: displayStatus },
               { label: 'Risk Level', val: riskLevel?.charAt(0).toUpperCase() + riskLevel?.slice(1) },
               ...(session?.autoSubmitTimestamp ? [{
                 label: 'Submitted At',

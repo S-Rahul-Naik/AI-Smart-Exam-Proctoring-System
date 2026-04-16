@@ -64,10 +64,18 @@ class ScoringService {
             isCorrect = !!correctOption;
           }
         } else if (question.type === 'true-false') {
-          // For true/false, compare directly
-          isCorrect =
-            studentAnswer &&
-            studentAnswer.toLowerCase() === question.correctAnswer?.toLowerCase();
+          // For true/false, compare against explicit correctAnswer or fallback to options.isCorrect
+          if (studentAnswer) {
+            const normalizedAnswer = String(studentAnswer).toLowerCase();
+            if (question.correctAnswer) {
+              isCorrect = normalizedAnswer === String(question.correctAnswer).toLowerCase();
+            } else if (question.options?.length) {
+              const correctOption = question.options.find(opt => opt.isCorrect);
+              if (correctOption?.text) {
+                isCorrect = normalizedAnswer === String(correctOption.text).toLowerCase();
+              }
+            }
+          }
         }
 
         if (isCorrect) {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { studentAPI } from '../../services/api';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
@@ -24,6 +24,7 @@ function captureFrame(video: HTMLVideoElement): string | null {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const [step, setStep] = useState<Step>('credentials');
   const [email, setEmail] = useState('');
@@ -46,6 +47,13 @@ export default function LoginPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
+
+  useEffect(() => {
+    const requestedRole = searchParams.get('role');
+    if (requestedRole === 'admin' || requestedRole === 'student') {
+      setRole(requestedRole);
+    }
+  }, [searchParams]);
 
   // Calculate image brightness
   const calculateBrightness = (imageData: ImageData): number => {
@@ -207,7 +215,7 @@ export default function LoginPage() {
     try {
       await login(email, password, role);
       if (role === 'admin') {
-        navigate('/admin/monitoring');
+        navigate('/admin/dashboard');
       } else {
         setStep('face-verify');
       }
@@ -398,13 +406,17 @@ export default function LoginPage() {
 
       {/* Left branding panel */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 h-screen px-16 py-12 relative z-10">
-        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="flex items-center gap-3 text-left cursor-pointer"
+        >
           <img src="https://public.readdy.ai/ai/img_res/bf8ee180-749c-43bb-8a55-d2dd1e2b7747.png" alt="ProctorAI" className="w-10 h-10 object-contain" />
           <div>
             <div className="text-white font-bold text-xl">ProctorAI</div>
             <div className="text-[#4b5563] text-xs">AI Smart Exam Proctoring</div>
           </div>
-        </div>
+        </button>
         <div>
           <h2 className="text-5xl font-black text-white mb-6 leading-tight">
             Secure. Intelligent.<br />

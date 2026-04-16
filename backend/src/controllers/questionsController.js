@@ -37,11 +37,14 @@ export const createQuestion = async (req, res) => {
       return res.status(404).json({ error: 'Exam not found' });
     }
 
-    // Get the next question number
-    const lastQuestion = await Question.findOne({ exam: examId })
+    // Get the next question number (robust against bad/legacy values)
+    const maxNumberDoc = await Question.find({ exam: examId })
       .sort({ number: -1 })
-      .select('number');
-    const nextNumber = (lastQuestion?.number || 0) + 1;
+      .select('number')
+      .limit(1)
+      .lean();
+    const currentMaxNumber = Number(maxNumberDoc?.[0]?.number || 0);
+    let nextNumber = currentMaxNumber + 1;
 
     // Validate question data
     if (!question || !type || !marks) {
@@ -52,21 +55,77 @@ export const createQuestion = async (req, res) => {
       return res.status(400).json({ error: 'MCQ must have at least 2 options' });
     }
 
-    const newQuestion = new Question({
-      exam: examId,
-      number: nextNumber,
-      question,
-      type,
-      marks,
-      options: type === 'mcq' ? options : undefined,
-      difficulty: difficulty || 'medium',
-      explanation,
-      tags: tags || [],
-      description,
-      createdBy: req.admin?._id,
-    });
+    if (type === 'true-false') {
+      if (!options || options.length < 2) {
+        return res.status(400).json({ error: 'True/False must include True and False options' });
+      }
+      const tfCorrectCount = options.filter(opt => opt?.isCorrect).length;
+      if (tfCorrectCount !== 1) {
+        return res.status(400).json({ error: 'True/False must have exactly one correct answer' });
+      }
+    }
 
-    await newQuestion.save();
+    let normalizedOptions = undefined;
+    let correctAnswer = undefined;
+
+    if (type === 'mcq') {
+      normalizedOptions = options;
+    }
+
+    if (type === 'true-false') {
+      normalizedOptions = options;
+      const correctOption = options.find(opt => opt?.isCorrect);
+      correctAnswer = correctOption?.text ? String(correctOption.text).toLowerCase() : undefined;
+    }
+
+    let newQuestion;
+    try {
+      newQuestion = new Question({
+        exam: examId,
+        number: nextNumber,
+        question,
+        type,
+        marks,
+        options: normalizedOptions,
+        correctAnswer,
+        difficulty: difficulty || 'medium',
+        explanation,
+        tags: tags || [],
+        description,
+        createdBy: req.admin?._id,
+      });
+
+      await newQuestion.save();
+    } catch (saveError) {
+      // Handle race on unique index (exam + number) by retrying once with fresh number
+      if (saveError?.code === 11000) {
+        const retryMaxDoc = await Question.find({ exam: examId })
+          .sort({ number: -1 })
+          .select('number')
+          .limit(1)
+          .lean();
+        nextNumber = Number(retryMaxDoc?.[0]?.number || 0) + 1;
+
+        newQuestion = new Question({
+          exam: examId,
+          number: nextNumber,
+          question,
+          type,
+          marks,
+          options: normalizedOptions,
+          correctAnswer,
+          difficulty: difficulty || 'medium',
+          explanation,
+          tags: tags || [],
+          description,
+          createdBy: req.admin?._id,
+        });
+
+        await newQuestion.save();
+      } else {
+        throw saveError;
+      }
+    }
 
     // Update exam's totalQuestions if not already set correctly
     const questionCount = await Question.countDocuments({ exam: examId });
@@ -92,6 +151,24 @@ export const updateQuestion = async (req, res) => {
     delete updates.exam;
     delete updates.number;
     delete updates.createdBy;
+
+    if (updates.type === 'true-false' || (updates.options && updates.type !== 'mcq')) {
+      const tfOptions = updates.options || [];
+      if (tfOptions.length < 2) {
+        return res.status(400).json({ error: 'True/False must include True and False options' });
+      }
+      const tfCorrectCount = tfOptions.filter(opt => opt?.isCorrect).length;
+      if (tfCorrectCount !== 1) {
+        return res.status(400).json({ error: 'True/False must have exactly one correct answer' });
+      }
+      const correctOption = tfOptions.find(opt => opt?.isCorrect);
+      updates.correctAnswer = correctOption?.text ? String(correctOption.text).toLowerCase() : undefined;
+      updates.options = tfOptions;
+    }
+
+    if (updates.type === 'mcq' && updates.options) {
+      updates.correctAnswer = undefined;
+    }
 
     const question = await Question.findOneAndUpdate(
       { _id: questionId, exam: examId },

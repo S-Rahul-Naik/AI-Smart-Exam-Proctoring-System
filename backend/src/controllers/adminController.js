@@ -1,6 +1,7 @@
 import Admin from '../models/Admin.js';
 import Student from '../models/Student.js';
 import Session from '../models/Session.js';
+import Exam from '../models/Exam.js';
 import Alert from '../models/Alert.js';
 import jwt from 'jsonwebtoken';
 
@@ -83,7 +84,52 @@ export const getStudents = async (req, res, next) => {
     }
 
     const students = await Student.find(query).select('-password').lean();
-    res.json({ count: students.length, students });
+
+    if (!students.length) {
+      return res.json({ count: 0, students: [] });
+    }
+
+    const studentIds = students.map((student) => student._id);
+
+    // Pull latest meaningful risk snapshot from non-initiated sessions.
+    const latestSessionRisk = await Session.aggregate([
+      {
+        $match: {
+          student: { $in: studentIds },
+          status: { $ne: 'initiated' },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$student',
+          riskScore: { $first: '$riskScore' },
+          riskLevel: { $first: '$riskLevel' },
+          faceMatchConfidence: { $first: '$identityVerification.faceMatchConfidence' },
+          lastSessionStatus: { $first: '$status' },
+          lastSessionAt: { $first: '$createdAt' },
+        },
+      },
+    ]);
+
+    const riskByStudentId = new Map(
+      latestSessionRisk.map((session) => [String(session._id), session])
+    );
+
+    const studentsWithRisk = students.map((student) => {
+      const riskData = riskByStudentId.get(String(student._id));
+      return {
+        ...student,
+        riskScore: typeof riskData?.riskScore === 'number' ? riskData.riskScore : 0,
+        riskLevel: riskData?.riskLevel || 'low',
+        faceMatchConfidence:
+          typeof riskData?.faceMatchConfidence === 'number' ? riskData.faceMatchConfidence : null,
+        lastSessionStatus: riskData?.lastSessionStatus || null,
+        lastSessionAt: riskData?.lastSessionAt || null,
+      };
+    });
+
+    res.json({ count: studentsWithRisk.length, students: studentsWithRisk });
   } catch (error) {
     next(error);
   }
@@ -108,6 +154,36 @@ export const getStudentById = async (req, res, next) => {
       alertsCount: alerts.length,
       highRiskAlerts: alerts.filter(a => a.severity === 'high').length,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateStudentAcademic = async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+    const { program, year } = req.body;
+
+    const updates = {
+      program: typeof program === 'string' ? program.trim() || null : null,
+      year: year === null || year === undefined || year === '' ? null : Number(year),
+    };
+
+    if (updates.year !== null && (Number.isNaN(updates.year) || updates.year < 1 || updates.year > 8)) {
+      return res.status(400).json({ error: 'Year must be between 1 and 8' });
+    }
+
+    const student = await Student.findByIdAndUpdate(
+      studentId,
+      updates,
+      { new: true, runValidators: true }
+    ).select('-password').lean();
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    res.json({ message: 'Student academic details updated', student });
   } catch (error) {
     next(error);
   }
@@ -310,6 +386,115 @@ export const getExams = async (req, res, next) => {
     );
 
     res.json({ count: examsWithCounts.length, exams: examsWithCounts });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getResultSessions = async (req, res, next) => {
+  try {
+    const sessions = await Session.find({
+      status: { $in: ['submitted', 'completed', 'flagged', 'terminated'] },
+    })
+      .populate('student', 'firstName lastName email usn')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const examIds = Array.from(
+      new Set(
+        sessions
+          .map((session) => {
+            const examRef = session?.exam;
+            if (examRef && typeof examRef === 'object' && examRef._id) {
+              return String(examRef._id);
+            }
+            return examRef ? String(examRef) : null;
+          })
+          .filter((examId) => examId && /^[a-f0-9]{24}$/i.test(examId))
+      )
+    );
+
+    const exams = examIds.length
+      ? await Exam.find({ _id: { $in: examIds } }).select('title subject courseCode code').lean()
+      : [];
+
+    const examById = new Map(exams.map((exam) => [String(exam._id), exam]));
+
+    const rows = sessions.map((session) => {
+      const studentName =
+        `${session?.student?.firstName || ''} ${session?.student?.lastName || ''}`.trim() ||
+        session?.student?.email ||
+        'Student';
+
+      const examRef = session?.exam;
+      const examDoc =
+        (examRef && typeof examRef === 'object' && examRef._id && examById.get(String(examRef._id))) ||
+        (examRef && examById.get(String(examRef))) ||
+        null;
+
+      const examRaw =
+        examDoc?.title ||
+        examDoc?.subject ||
+        examRef?.title ||
+        examRef?.subject ||
+        (typeof examRef === 'string' ? examRef : 'Exam Session');
+
+      const courseCode =
+        examDoc?.courseCode ||
+        examDoc?.code ||
+        examRef?.courseCode ||
+        examRef?.code ||
+        session?.courseCode ||
+        session?.code ||
+        '';
+
+      const examName =
+        typeof examRaw === 'string' && /^[a-f0-9]{24}$/i.test(examRaw)
+          ? 'Exam Session'
+          : examRaw || 'Exam Session';
+
+      let decisionStatus = 'pending';
+      if (session?.adminReview?.reviewed) {
+        if (session.adminReview.decision === 'approved') {
+          decisionStatus = 'approved';
+        } else if (session.adminReview.decision === 'rejected') {
+          decisionStatus = 'rejected';
+        } else if (session.adminReview.decision === 'needs_manual_review') {
+          decisionStatus = 'flagged';
+        }
+      } else if (session.flagged || session.status === 'flagged') {
+        decisionStatus = 'pending';
+      }
+
+      return {
+        id: String(session._id),
+        student: studentName,
+        usn: String(session?.student?.usn || '').toUpperCase() || 'N/A',
+        exam: examName,
+        courseCode: String(courseCode || '').toUpperCase(),
+        date: session?.createdAt || session?.startTime || null,
+        examScore: Number(session?.examScore?.percentage ?? session?.score ?? 0),
+        marksObtained: Number(session?.examScore?.obtained ?? session?.score ?? 0),
+        totalMarks: Number(
+          session?.examScore?.total ??
+          examDoc?.totalMarks ??
+          session?.totalMarks ??
+          0
+        ),
+        riskScore: Number(session?.riskScore ?? 0),
+        riskLevel: session?.riskLevel || 'low',
+        status: decisionStatus,
+      };
+    });
+
+    const summary = {
+      totalSessions: rows.length,
+      pendingReview: rows.filter((row) => row.status === 'pending').length,
+      approved: rows.filter((row) => row.status === 'approved').length,
+      flaggedRejected: rows.filter((row) => row.status === 'flagged' || row.status === 'rejected').length,
+    };
+
+    res.json({ count: rows.length, summary, sessions: rows });
   } catch (error) {
     next(error);
   }

@@ -34,7 +34,7 @@ const DEMO_EXAM_DATA: Record<string, Omit<ExamTokenPayload, 'issuedAt' | 'expire
     courseCode: 'CS401',
     date: '2026-03-24',
     startTime: '09:00',
-    duration: 180,
+    duration: 1,
   },
   e002: {
     examId: 'e002',

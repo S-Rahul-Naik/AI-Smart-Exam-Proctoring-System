@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { mockAlerts } from '../../../../mocks/alerts';
-import { readStoredSnapshots } from '../../../../hooks/useSnapshotCapture';
 
 interface Session {
   id: string;
@@ -18,6 +16,19 @@ interface Session {
 
 interface Props {
   session: Session;
+  alerts?: Array<{
+    id: string;
+    timestamp: string;
+    description: string;
+    severity: string;
+    riskContribution: number;
+    snapshot?: string;
+  }>;
+}
+
+function isLipMovementAlert(alert: { description?: string }): boolean {
+  const raw = `${alert?.description || ''}`.toLowerCase();
+  return raw.includes('lip_movement') || raw.includes('lip movement');
 }
 
 async function loadImageAsDataUrl(url: string): Promise<string | null> {
@@ -42,7 +53,7 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
   });
 }
 
-export default function SessionPDFExport({ session }: Props) {
+export default function SessionPDFExport({ session, alerts = [] }: Props) {
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
@@ -95,7 +106,7 @@ export default function SessionPDFExport({ session }: Props) {
     doc.text(`${session.examScore}%`, 70, 71);
 
     const riskColor: [number, number, number] =
-      session.riskLevel === 'high' ? [248, 113, 113] :
+      session.riskLevel === 'high' || session.riskLevel === 'critical' ? [248, 113, 113] :
       session.riskLevel === 'medium' ? [251, 191, 36] : [52, 211, 153];
     doc.setTextColor(...riskColor);
     doc.text(`${session.riskScore}/100`, 110, 71);
@@ -105,7 +116,7 @@ export default function SessionPDFExport({ session }: Props) {
 
     // ── Risk Level callout ────────────────────────────────────────────────────
     const rlBgColor: [number, number, number] =
-      session.riskLevel === 'high' ? [127, 29, 29] :
+      session.riskLevel === 'high' || session.riskLevel === 'critical' ? [127, 29, 29] :
       session.riskLevel === 'medium' ? [120, 80, 5] : [6, 78, 59];
     doc.setFillColor(...rlBgColor);
     doc.roundedRect(14, 78, pageW - 28, 12, 2, 2, 'F');
@@ -161,20 +172,12 @@ export default function SessionPDFExport({ session }: Props) {
     doc.text('EVENT TIMELINE', 14, yPos);
     yPos += 6;
 
-    const studentId =
-      session.student === 'Aisha Rahman' ? 's001' :
-      session.student === 'Priya Nair' ? 's005' :
-      session.student === 'Yuki Tanaka' ? 's007' :
-      session.student === 'Omar Al-Farsi' ? 's008' : null;
-
-    const alerts = studentId
-      ? mockAlerts.filter(a => a.studentId === studentId)
-      : mockAlerts.slice(0, 4);
+    const timelineAlerts = alerts.filter((alert) => !isLipMovementAlert(alert));
 
     autoTable(doc, {
       startY: yPos,
       head: [['#', 'Time', 'Event', 'Severity', 'Risk +']],
-      body: alerts.map((a, i) => [String(i + 1), a.timestamp, a.description, a.severity.toUpperCase(), `+${a.riskContribution}`]),
+      body: timelineAlerts.map((a, i) => [String(i + 1), a.timestamp, a.description, a.severity.toUpperCase(), `+${a.riskContribution}`]),
       theme: 'plain',
       styles: { fontSize: 8, cellPadding: 3, textColor: [209, 213, 219], fillColor: [17, 19, 24], lineColor: [30, 35, 48], lineWidth: 0.1 },
       headStyles: { textColor: [107, 114, 128], fontSize: 7, fontStyle: 'bold', fillColor: [17, 19, 24] },
@@ -192,7 +195,27 @@ export default function SessionPDFExport({ session }: Props) {
     });
 
     // ── Violation Evidence Snapshot Gallery ──────────────────────────────────
-    const snapshots = readStoredSnapshots();
+    const evidenceSnapshots = await Promise.all(
+      timelineAlerts.map(async (alert, index) => {
+        let dataUrl: string | null = null;
+        if (alert.snapshot) {
+          if (alert.snapshot.startsWith('data:image')) {
+            dataUrl = alert.snapshot;
+          } else {
+            dataUrl = await loadImageAsDataUrl(alert.snapshot);
+          }
+        }
+
+        return {
+          id: alert.id || `evidence-${index}`,
+          dataUrl,
+          timestamp: alert.timestamp || 'N/A',
+          reason: alert.description || 'Evidence event',
+          type: alert.severity === 'high' || alert.severity === 'critical' ? 'focus_violation' : 'ai_detection',
+          riskContribution: alert.riskContribution || 0,
+        };
+      })
+    );
 
     // Start gallery on new page
     doc.addPage();
@@ -219,7 +242,7 @@ export default function SessionPDFExport({ session }: Props) {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
 
-    if (snapshots.length === 0) {
+    if (evidenceSnapshots.length === 0) {
       // No real snapshots — show placeholder info
       doc.setFillColor(17, 19, 24);
       doc.roundedRect(14, 40, pageW - 28, 40, 3, 3, 'F');
@@ -263,15 +286,15 @@ export default function SessionPDFExport({ session }: Props) {
       });
     } else {
       // Real snapshots — render as 2-column grid
-      doc.text(`${snapshots.length} evidence snapshot${snapshots.length !== 1 ? 's' : ''} captured during this session`, 14, 40);
+      doc.text(`${evidenceSnapshots.length} evidence snapshot${evidenceSnapshots.length !== 1 ? 's' : ''} captured during this session`, 14, 40);
 
       const imgW = (pageW - 28 - 6) / 2; // two columns with 6mm gap
       const imgH = imgW * (240 / 320);   // maintain 4:3 ratio
       const cols = 2;
       let gY = 46;
 
-      for (let i = 0; i < Math.min(snapshots.length, 12); i++) {
-        const snap = snapshots[i];
+      for (let i = 0; i < evidenceSnapshots.length; i++) {
+        const snap = evidenceSnapshots[i];
         const col = i % cols;
         const gX = 14 + col * (imgW + 6);
 

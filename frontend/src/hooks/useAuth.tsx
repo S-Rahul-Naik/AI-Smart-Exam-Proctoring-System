@@ -4,6 +4,7 @@ import { studentAPI, adminAPI } from '../services/api';
 interface User {
   id: string;
   email: string;
+  usn?: string;
   firstName: string;
   lastName: string;
   role?: 'student' | 'admin';

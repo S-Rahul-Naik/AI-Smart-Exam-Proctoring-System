@@ -89,10 +89,12 @@ export const initializeSession = async (req, res, next) => {
       }
     }
 
+    const examRef = exam?._id || examId;
+
     // Check for existing session
     console.log('Checking for existing session...');
     let existingSession = await Session.findOne({
-      exam: examId,
+      exam: examRef,
       student: studentId,
       status: { $in: ['initiated', 'in_progress'] },
     });
@@ -105,7 +107,7 @@ export const initializeSession = async (req, res, next) => {
     // Create new session
     console.log('Creating new session...');
     const session = new Session({
-      exam: examId,
+      exam: examRef,
       student: studentId,
       status: 'initiated',
     });
@@ -219,13 +221,24 @@ export const submitSession = async (req, res, next) => {
 
     try {
       // Calculate exam score from answers
-      if (answers && existingSession.exam) {
+      const examIdForScoring =
+        (existingSession.exam && typeof existingSession.exam === 'object' && existingSession.exam._id)
+          ? existingSession.exam._id
+          : existingSession.exam;
+
+      if (answers && examIdForScoring) {
         examScore = await scoringService.calculateExamScore(
-          existingSession.exam._id,
+          examIdForScoring,
           new Map(Object.entries(answers)),
           isAutoSubmitted  // Pass flag for auto-submitted handling
         );
-        console.log('✅ Exam score calculated:', { percentage: examScore.percentage, isAutoSubmitted });
+        console.log('✅ Exam score calculated:', {
+          examIdForScoring,
+          percentage: examScore.percentage,
+          obtainedMarks: examScore.obtainedMarks,
+          totalMarks: examScore.totalMarks,
+          isAutoSubmitted,
+        });
       }
 
       // Calculate risk score from events
@@ -411,13 +424,17 @@ export const uploadSnapshot = async (req, res, next) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // IMMEDIATELY store snapshot metadata locally - never wait for cloud upload
+    // IMMEDIATELY store a real image URL (data URL) so admin timeline can render thumbnails
+    const mimeType = file.mimetype || 'image/jpeg';
+    const inlineDataUrl = `data:${mimeType};base64,${file.buffer.toString('base64')}`;
+
+    // Store snapshot metadata immediately - never wait for cloud upload
     const snapshotMetadata = {
-      url: `local-${Date.now()}`,
+      url: inlineDataUrl,
       timestamp: new Date(),
       eventType,
       size: file.size,
-      stored: 'local',
+      stored: 'local-inline',
       cloudinaryPending: true,
     };
 
@@ -425,8 +442,8 @@ export const uploadSnapshot = async (req, res, next) => {
     await session.save();
 
     // Return success IMMEDIATELY to avoid blocking the exam
-    res.json({ 
-      message: 'Snapshot stored locally',
+    res.json({
+      message: 'Snapshot stored',
       snapshot: snapshotMetadata,
     });
 
@@ -611,10 +628,35 @@ export const getMalpracticeReport = async (req, res, next) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
+    const snapshots = Array.isArray(session.snapshots) ? session.snapshots : [];
+
+    const resolveNearestSnapshotUrl = (eventTimestamp) => {
+      if (!eventTimestamp || !snapshots.length) return null;
+      const eventTime = new Date(eventTimestamp).getTime();
+      if (Number.isNaN(eventTime)) return null;
+
+      let best = null;
+      let bestDiff = Number.POSITIVE_INFINITY;
+
+      for (const snapshot of snapshots) {
+        if (!snapshot?.timestamp || !snapshot?.url) continue;
+        const snapTime = new Date(snapshot.timestamp).getTime();
+        if (Number.isNaN(snapTime)) continue;
+        const diff = Math.abs(snapTime - eventTime);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = snapshot;
+        }
+      }
+
+      // Only attach when snapshot is reasonably close to the event.
+      return best && bestDiff <= 5 * 60 * 1000 ? best.url : null;
+    };
+
     // Generate comprehensive malpractice report
     const report = {
       sessionId: session._id,
-      studentEmail: session.student.email,
+      studentEmail: session.student?.email,
       examCode: session.exam,
       timestamp: new Date(),
       overallRiskScore: session.riskScore,
@@ -622,9 +664,10 @@ export const getMalpracticeReport = async (req, res, next) => {
       eventLog: session.events.map(e => ({
         type: e.type,
         timestamp: e.timestamp,
-        label: e.label,
+        label: typeof e.label === 'string' ? e.label : e.type,
         severity: e.severity || EVENT_WEIGHTS[e.type]?.severity,
         confidence: e.confidence,
+        snapshotUrl: e.snapshotUrl || resolveNearestSnapshotUrl(e.timestamp),
       })),
       malpracticeIndicators: session.malpracticeIndicators,
       evidence: {

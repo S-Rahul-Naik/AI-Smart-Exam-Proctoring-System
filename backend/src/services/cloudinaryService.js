@@ -8,12 +8,26 @@ cloudinary.v2.config({
 
 export const uploadFaceImage = async (base64Image, studentId, photoType = 'signup') => {
   try {
+    // Accept plain data URL strings and tolerate legacy payload shapes.
+    const normalizedImage =
+      typeof base64Image === 'string'
+        ? base64Image
+        : typeof base64Image?.faceData === 'string'
+        ? base64Image.faceData
+        : typeof base64Image?.dataUrl === 'string'
+        ? base64Image.dataUrl
+        : null;
+
+    if (!normalizedImage) {
+      throw new Error('Invalid face image payload. Expected base64 image string.');
+    }
+
     // Use different IDs for signup vs login to prevent overwriting
     // Format must include 'stud[id]' for backend verification to extract student ID
     const photoTypeLabel = photoType === 'login' ? 'login_verified' : 'signup_enrolled';
     const publicId = `stud_${studentId}_${photoTypeLabel}`;
     
-    const result = await cloudinary.v2.uploader.upload(base64Image, {
+    const result = await cloudinary.v2.uploader.upload(normalizedImage, {
       folder: 'proctor/faces',
       resource_type: 'auto',
       public_id: publicId,

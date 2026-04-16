@@ -5,22 +5,29 @@ import logger from '../utils/logger.js';
 
 export const registerStudent = async (req, res, next) => {
   try {
-    const { email, firstName, lastName, password, confirmPassword } = req.body;
+    const { email, usn, firstName, lastName, password, confirmPassword, program, year } = req.body;
+
+    if (!usn) {
+      return res.status(400).json({ error: 'USN is required' });
+    }
 
     if (password !== confirmPassword) {
       return res.status(400).json({ error: 'Passwords do not match' });
     }
 
-    const existingStudent = await Student.findOne({ email });
+    const existingStudent = await Student.findOne({ $or: [{ email }, { usn: usn.toUpperCase() }] });
     if (existingStudent) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ error: 'Email or USN already registered' });
     }
 
     const student = new Student({
       email,
+      usn: usn.toUpperCase(),
       firstName,
       lastName,
       password,
+      program: program || null,
+      year: typeof year === 'number' ? year : (year ? Number(year) : null),
     });
 
     await student.save();
@@ -37,8 +44,11 @@ export const registerStudent = async (req, res, next) => {
       student: {
         id: student._id,
         email: student.email,
+        usn: student.usn,
         firstName: student.firstName,
         lastName: student.lastName,
+        program: student.program,
+        year: student.year,
       },
     });
   } catch (error) {
@@ -72,6 +82,7 @@ export const loginStudent = async (req, res, next) => {
       student: {
         id: student._id,
         email: student.email,
+        usn: student.usn,
         firstName: student.firstName,
         lastName: student.lastName,
       },
@@ -99,11 +110,33 @@ export const getStudentProfile = async (req, res, next) => {
 
 export const updateStudentProfile = async (req, res, next) => {
   try {
-    const { firstName, lastName } = req.body;
+    const { usn, firstName, lastName, program, year } = req.body;
+
+    const updates = {};
+
+    if (usn) {
+      updates.usn = usn.toUpperCase();
+    }
+    if (firstName !== undefined) {
+      updates.firstName = firstName;
+    }
+    if (lastName !== undefined) {
+      updates.lastName = lastName;
+    }
+    if (program !== undefined) {
+      updates.program = program;
+    }
+    if (year !== undefined) {
+      updates.year = typeof year === 'number' ? year : Number(year);
+    }
+
+    if (typeof updates.year === 'number' && Number.isNaN(updates.year)) {
+      updates.year = undefined;
+    }
 
     const student = await Student.findByIdAndUpdate(
       req.user.id,
-      { firstName, lastName },
+      updates,
       { new: true, runValidators: true }
     );
 

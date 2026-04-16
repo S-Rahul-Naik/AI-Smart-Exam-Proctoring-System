@@ -1,6 +1,6 @@
 interface RiskBadgeProps {
   score: number;
-  level: 'low' | 'medium' | 'high';
+  level: 'low' | 'medium' | 'high' | 'critical';
   showScore?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
@@ -9,6 +9,7 @@ const colors = {
   low: { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30', dot: 'bg-emerald-400' },
   medium: { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/30', dot: 'bg-amber-400' },
   high: { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/30', dot: 'bg-red-400' },
+  critical: { bg: 'bg-rose-600/20', text: 'text-rose-300', border: 'border-rose-500/40', dot: 'bg-rose-400' },
 };
 
 export default function RiskBadge({ score, level, showScore = true, size = 'md' }: RiskBadgeProps) {
@@ -17,7 +18,7 @@ export default function RiskBadge({ score, level, showScore = true, size = 'md' 
 
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border font-semibold ${c.bg} ${c.text} ${c.border} ${sizeClass}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${c.dot} ${level === 'high' ? 'animate-pulse' : ''} flex-shrink-0`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${c.dot} ${level === 'high' || level === 'critical' ? 'animate-pulse' : ''} flex-shrink-0`} />
       {showScore ? `${score} · ${level.charAt(0).toUpperCase() + level.slice(1)}` : level.charAt(0).toUpperCase() + level.slice(1)}
     </span>
   );

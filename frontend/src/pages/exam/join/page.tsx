@@ -167,12 +167,16 @@ export default function ExamJoinPage() {
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <div className="w-full max-w-lg">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="flex items-center gap-3 mb-8 text-left cursor-pointer"
+        >
           <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-teal-500/10">
             <i className="ri-shield-check-fill text-teal-400 text-lg" />
           </div>
           <span className="text-white font-bold text-lg">ProctorAI</span>
-        </div>
+        </button>
 
         {/* Exam info banner */}
         {exam && (

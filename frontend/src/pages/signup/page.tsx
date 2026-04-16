@@ -29,8 +29,11 @@ export default function SignupPage() {
 
   // Form fields
   const [email, setEmail] = useState('');
+  const [usn, setUsn] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [program, setProgram] = useState('');
+  const [year, setYear] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signupError, setSignupError] = useState<string | null>(null);
@@ -155,7 +158,7 @@ export default function SignupPage() {
   };
 
   const validateForm = () => {
-    if (!email || !firstName || !lastName || !password || !confirmPassword) {
+    if (!email || !usn || !firstName || !lastName || !password || !confirmPassword) {
       setSignupError('All fields are required');
       return false;
     }
@@ -187,8 +190,11 @@ export default function SignupPage() {
     try {
       await register({
         email,
+        usn,
         firstName,
         lastName,
+        program: program || undefined,
+        year: year ? Number(year) : undefined,
         password,
         confirmPassword,
       });
@@ -361,13 +367,17 @@ export default function SignupPage() {
 
       {/* Left branding panel */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 h-screen px-16 py-12 relative z-10">
-        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="flex items-center gap-3 text-left cursor-pointer"
+        >
           <img src="https://public.readdy.ai/ai/img_res/bf8ee180-749c-43bb-8a55-d2dd1e2b7747.png" alt="ProctorAI" className="w-10 h-10 object-contain" />
           <div>
             <div className="text-white font-bold text-xl">ProctorAI</div>
             <div className="text-[#4b5563] text-xs">AI Smart Exam Proctoring</div>
           </div>
-        </div>
+        </button>
         <div>
           <h2 className="text-5xl font-black text-white mb-6 leading-tight">
             Join the future of<br />
@@ -416,7 +426,22 @@ export default function SignupPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="your.email@uni.edu"
+                      placeholder="your.email@gmail.com"
+                      className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg pl-10 pr-4 py-3 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* USN */}
+                <div>
+                  <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">USN</label>
+                  <div className="relative">
+                    <i className="ri-id-card-line absolute left-3.5 top-1/2 -translate-y-1/2 text-[#4b5563] text-sm" />
+                    <input
+                      type="text"
+                      value={usn}
+                      onChange={(e) => setUsn(e.target.value)}
+                      placeholder="4PS21CS0XX"
                       className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg pl-10 pr-4 py-3 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50 transition-colors"
                     />
                   </div>
@@ -446,6 +471,38 @@ export default function SignupPage() {
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         placeholder="Last"
+                        className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg pl-10 pr-4 py-3 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50 transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Academic details */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Program</label>
+                    <div className="relative">
+                      <i className="ri-book-open-line absolute left-3.5 top-1/2 -translate-y-1/2 text-[#4b5563] text-sm" />
+                      <input
+                        type="text"
+                        value={program}
+                        onChange={(e) => setProgram(e.target.value)}
+                        placeholder="Computer Science"
+                        className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg pl-10 pr-4 py-3 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50 transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#9ca3af] mb-1.5">Year</label>
+                    <div className="relative">
+                      <i className="ri-hashtag absolute left-3.5 top-1/2 -translate-y-1/2 text-[#4b5563] text-sm" />
+                      <input
+                        type="number"
+                        min={1}
+                        max={8}
+                        value={year}
+                        onChange={(e) => setYear(e.target.value)}
+                        placeholder="1"
                         className="w-full bg-[#0a0c10] border border-[#2d3139] rounded-lg pl-10 pr-4 py-3 text-white text-sm placeholder-[#4b5563] focus:outline-none focus:border-teal-500/50 transition-colors"
                       />
                     </div>
@@ -485,7 +542,7 @@ export default function SignupPage() {
 
                 <button
                   type="submit"
-                  disabled={isLoading || !email || !firstName || !lastName || !password || !confirmPassword}
+                  disabled={isLoading || !email || !usn || !firstName || !lastName || !password || !confirmPassword}
                   className="w-full bg-teal-500 hover:bg-teal-400 disabled:bg-[#4b5563] disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 mt-6"
                 >
                   {isLoading ? (

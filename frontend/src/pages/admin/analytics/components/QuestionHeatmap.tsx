@@ -43,6 +43,20 @@ export default function QuestionHeatmap({ data }: Props) {
   const [hoveredCell, setHoveredCell] = useState<{ q: QuestionViolationData; type: ViolationKey } | null>(null);
   const [activeType, setActiveType] = useState<ViolationKey | 'total'>('total');
 
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-5">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <h3 className="text-white font-semibold text-sm">Question Violation Heatmap</h3>
+            <p className="text-[#4b5563] text-xs mt-0.5">Which questions triggered the most behavioral violations</p>
+          </div>
+        </div>
+        <div className="text-[#6b7280] text-sm py-6">No live question-level violation data available yet.</div>
+      </div>
+    );
+  }
+
   const maxValues = VIOLATION_TYPES.reduce((acc, vt) => {
     acc[vt.key] = Math.max(...data.map(q => q[vt.key]));
     return acc;

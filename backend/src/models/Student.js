@@ -60,6 +60,25 @@ const studentSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
+    usn: {
+      type: String,
+      unique: true,
+      sparse: true,
+      required: true,
+      trim: true,
+      uppercase: true,
+    },
+    program: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    year: {
+      type: Number,
+      min: 1,
+      max: 8,
+      default: null,
+    },
     exams: [
       {
         type: mongoose.Schema.Types.ObjectId,

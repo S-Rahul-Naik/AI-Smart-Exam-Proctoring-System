@@ -8,6 +8,7 @@ interface Question {
   type: 'mcq' | 'true-false';
   marks: number;
   options?: Array<{ id: string; text: string; isCorrect: boolean }>;
+  correctAnswer?: string;
   difficulty?: 'easy' | 'medium' | 'hard';
   explanation?: string;
 }
@@ -67,14 +68,14 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
         marks: parseInt(String(newQuestion.marks), 10)
       };
 
-      const response = await examAPI.createQuestion(examId, questionData);
-      setQuestions([...questions, response.data.question]);
-      setTotalMarks(totalMarks + questionData.marks);
+      await examAPI.createQuestion(examId, questionData);
+      await loadExamData();
       setIsAddingQuestion(false);
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Failed to create question';
       alert(`Error: ${errorMsg}`);
       console.error('Error creating question:', error);
+      throw error;
     }
   };
 
@@ -94,13 +95,14 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
         marks: parseInt(String(updatedQuestion.marks), 10)
       };
 
-      const response = await examAPI.updateQuestion(examId, updatedQuestion._id!, questionData);
-      setQuestions(questions.map(q => q._id === updatedQuestion._id ? response.data.question : q));
+      await examAPI.updateQuestion(examId, updatedQuestion._id!, questionData);
+      await loadExamData();
       setSelectedQuestion(null);
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || error.message || 'Failed to update question';
       alert(`Error: ${errorMsg}`);
       console.error('Error updating question:', error);
+      throw error;
     }
   };
 
@@ -108,13 +110,26 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
     if (confirm('Are you sure you want to delete this question?')) {
       try {
         await examAPI.deleteQuestion(examId, questionId);
-        const deletedQ = questions.find(q => q._id === questionId);
-        setQuestions(questions.filter(q => q._id !== questionId));
-        if (deletedQ) setTotalMarks(totalMarks - deletedQ.marks);
+        await loadExamData();
       } catch (error) {
         console.error('Error deleting question:', error);
       }
     }
+  };
+
+  const getSelectedAnswerText = (question: Question) => {
+    if (question.options?.length) {
+      const correctOption = question.options.find((option) => option.isCorrect);
+      if (correctOption?.text) {
+        return correctOption.text;
+      }
+    }
+
+    if (question.correctAnswer) {
+      return question.correctAnswer;
+    }
+
+    return 'Not set';
   };
 
   if (loading) {
@@ -209,6 +224,10 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
                           </span>
                         )}
                       </div>
+                      <p className="text-xs mt-2 text-[#9ca3af]">
+                        Selected Answer:{' '}
+                        <span className="text-teal-400 font-semibold">{getSelectedAnswerText(q)}</span>
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -275,7 +294,7 @@ export default function ExamEditor({ examId, onClose, onSave }: ExamEditorProps)
 interface QuestionFormProps {
   question?: Question;
   examMarks?: number;
-  onSave: (question: Question) => void;
+  onSave: (question: Question) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -295,6 +314,7 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
   const [numOptions, setNumOptions] = useState(
     question?.options?.length || 2
   );
+  const [isSaving, setIsSaving] = useState(false);
 
   // Update number of options for MCQ
   const updateNumOptions = (newNum: number) => {
@@ -335,7 +355,9 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
     setFormData({ ...formData, options: updatedOptions });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSaving) return;
+
     if (!formData.question || !formData.question.trim()) {
       alert('Please enter question text');
       return;
@@ -376,20 +398,29 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
       options: formData.type === 'mcq' 
         ? (formData.options || []).filter(opt => opt.text.trim())
         : formData.options,
+      correctAnswer:
+        formData.type === 'true-false'
+          ? String((formData.options || []).find(opt => opt.isCorrect)?.text || '').toLowerCase()
+          : undefined,
     };
 
-    onSave(submittedData);
-    setFormData({
-      question: '',
-      type: 'mcq',
-      marks: 1,
-      difficulty: 'medium',
-      options: [
-        { id: '1', text: '', isCorrect: false },
-        { id: '2', text: '', isCorrect: false },
-      ],
-    });
-    setNumOptions(2);
+    setIsSaving(true);
+    try {
+      await onSave(submittedData);
+      setFormData({
+        question: '',
+        type: 'mcq',
+        marks: 1,
+        difficulty: 'medium',
+        options: [
+          { id: '1', text: '', isCorrect: false },
+          { id: '2', text: '', isCorrect: false },
+        ],
+      });
+      setNumOptions(2);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const isMCQ = formData.type === 'mcq';
@@ -415,7 +446,7 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
                   ...formData,
                   type: newType,
                   options: [
-                    { id: '1', text: 'True', isCorrect: false },
+                    { id: '1', text: 'True', isCorrect: true },
                     { id: '2', text: 'False', isCorrect: false },
                   ],
                 });
@@ -536,13 +567,15 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
         <div className="flex gap-2">
           <button
             onClick={handleSubmit}
-            className="flex-1 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg font-semibold transition-colors"
+            disabled={isSaving}
+            className="flex-1 px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-[#4b5563] text-white rounded-lg font-semibold transition-colors disabled:cursor-not-allowed"
           >
-            Save Question
+            {isSaving ? 'Saving...' : 'Save Question'}
           </button>
           <button
             onClick={onCancel}
-            className="px-4 py-2 border border-[#1e2330] text-[#6b7280] hover:text-white rounded-lg transition-colors"
+            disabled={isSaving}
+            className="px-4 py-2 border border-[#1e2330] text-[#6b7280] hover:text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
@@ -554,7 +587,7 @@ function QuestionForm({ question, examMarks, onSave, onCancel }: QuestionFormPro
 
 interface QuestionEditorModalProps {
   question: Question;
-  onSave: (question: Question) => void;
+  onSave: (question: Question) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -563,6 +596,22 @@ function QuestionEditorModal({ question, onSave, onClose }: QuestionEditorModalP
   const [numOptions, setNumOptions] = useState(
     question?.options?.length || 2
   );
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (question?.type === 'true-false' && question.options?.length) {
+      const hasCorrectAnswer = question.options.some(option => option.isCorrect);
+      if (!hasCorrectAnswer) {
+        setFormData({
+          ...question,
+          options: question.options.map((option, index) => ({
+            ...option,
+            isCorrect: index === 0,
+          })),
+        });
+      }
+    }
+  }, [question]);
 
   // Update number of options for MCQ
   const updateNumOptions = (newNum: number) => {
@@ -605,7 +654,9 @@ function QuestionEditorModal({ question, onSave, onClose }: QuestionEditorModalP
 
   const isMCQ = formData.type === 'mcq';
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isSaving) return;
+
     if (!formData.question || !formData.question.trim()) {
       alert('Please enter question text');
       return;
@@ -636,10 +687,19 @@ function QuestionEditorModal({ question, onSave, onClose }: QuestionEditorModalP
       options: isMCQ
         ? (formData.options || []).filter(opt => opt.text.trim())
         : formData.options,
+      correctAnswer:
+        formData.type === 'true-false'
+          ? String((formData.options || []).find(opt => opt.isCorrect)?.text || '').toLowerCase()
+          : undefined,
     };
 
-    onSave(submittedData);
-    onClose();
+    setIsSaving(true);
+    try {
+      await onSave(submittedData);
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
