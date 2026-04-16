@@ -277,15 +277,49 @@ sudo systemctl status mongod
 # Should show "active (running)"
 ```
 
-### 5.2 Create Database Collections
+### 5.2 Seed the Database (Create Admin & Test Accounts)
 
-Open a new terminal and run:
+**IMPORTANT**: You MUST run this step before logging in!
+
+Open a **new terminal** and run:
 
 ```bash
 cd path/to/proctor/backend
 npm run seed
-# Creates initial database structure and sample data
+# Should output: "✓ Database seeded successfully"
 ```
+
+**What the seed command does**:
+✓ Creates MongoDB collections (database structure)  
+✓ Creates an **Admin Account** (for you to manage exams)  
+✓ Creates a **Student Account** (for testing as a student)  
+✓ Loads sample exam data  
+
+**Default Accounts Created**:
+
+| Role | Email | Password | Purpose |
+|------|-------|----------|---------|
+| **Admin** | `admin@test.com` | `admin123` | Login to admin dashboard & review sessions |
+| **Student** | `student@test.com` | `password123` | Login as student to take test exam |
+
+### 5.3 Verify Seeding Worked
+
+Check if database was created:
+
+**Windows/Mac/Linux**:
+```bash
+mongosh
+# Or: mongo
+
+use proctordb
+show collections
+# Should see: admins, students, exams, sessions, etc.
+
+db.admins.findOne()
+# Should show the admin account with email: admin@test.com
+```
+
+If you see the admin account, you're ready! ✅
 
 ---
 
@@ -337,9 +371,11 @@ You should see the ProctorAI landing page!
 
 ### 7.2 Test Admin Dashboard
 1. Click "Admin Console" on homepage
-2. Use test admin credentials:
+2. Use test admin credentials created by seeding:
    - **Email**: `admin@test.com`
    - **Password**: `admin123`
+3. You should see the admin dashboard with live monitoring, alerts, and sessions
+4. If login fails, make sure you ran `npm run seed` in Step 5.2
 
 ### 7.3 Check Database Connection
 Open a new terminal:
