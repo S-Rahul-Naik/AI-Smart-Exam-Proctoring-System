@@ -124,8 +124,8 @@ export default function HomePage() {
             <span className="bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">Proctoring System</span>
           </h1>
           <p className="text-[#9ca3af] text-lg md:text-xl max-w-3xl mx-auto mb-10 leading-relaxed">
-            End-to-end real-time behavioral monitoring with multi-modal temporal risk analysis.
-            Detect, score, and explain suspicious behavior with explainable AI alerts.
+            Continuous real-time behavioral monitoring with multi-modal AI detection and temporal risk analysis.
+            Detect suspicious behavior, score risk dynamically, and take action with intelligent alerts.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button onClick={() => navigate('/login')} className="bg-teal-500 hover:bg-teal-400 text-white font-bold px-8 py-4 rounded-xl text-base transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shadow-lg shadow-teal-500/25">
