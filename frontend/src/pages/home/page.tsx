@@ -3,19 +3,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 const features = [
-  { icon: 'ri-eye-line', title: 'Real-Time Monitoring', desc: 'Process webcam frames at 1–2 FPS with low latency AI inference. Monitor hundreds of candidates simultaneously.' },
+  { icon: 'ri-eye-line', title: 'Real-Time Monitoring', desc: 'Process webcam frames at 1–2 FPS with intelligent AI inference. Monitor hundreds of candidates simultaneously.' },
   { icon: 'ri-brain-line', title: 'Multi-Modal Detection', desc: 'Detect face absence, multiple faces, gaze direction (center/left/right/down), and mobile phone presence.' },
   { icon: 'ri-timeline-line', title: 'Temporal Pattern Analysis', desc: '30-second sliding window tracks behavioral frequency, absence duration, and repeated suspicious patterns.' },
   { icon: 'ri-radar-line', title: 'Dynamic Risk Scoring', desc: 'Weighted scoring: phone (30), face missing (20), gaze deviation (8). Includes time-based decay across 30-sec window.' },
-  { icon: 'ri-shield-check-line', title: 'Explainable Alerts', desc: 'Every alert includes reason, timestamp, contributing signals, and human-readable explanation.' },
+  { icon: 'ri-shield-check-line', title: 'Detailed Alerts', desc: 'Every alert includes timestamp, contributing violation events, risk level, and evidence snapshots.' },
   { icon: 'ri-dashboard-3-line', title: 'Admin Console', desc: 'Live student grid, event timeline, risk trend graphs, evidence snapshots, and prioritized alert queue.' },
 ];
 
 const stats = [
-  { value: '99.2%', label: 'Detection Accuracy' },
-  { value: '<150ms', label: 'Alert Latency' },
-  { value: '500+', label: 'Concurrent Students' },
-  { value: '6', label: 'AI Modules' },
+  { value: '95%+', label: 'Detection Accuracy' },
+  { value: '~1s', label: 'Alert Latency' },
+  { value: '100+', label: 'Concurrent Students' },
+  { value: '6', label: 'AI Detection Modules' },
 ];
 
 const steps = [
