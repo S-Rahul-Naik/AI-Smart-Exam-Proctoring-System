@@ -1,7 +1,7 @@
 # AI Smart Exam Proctoring System
 
 ## 1. Project Description
-A production-grade, real-time AI-powered exam proctoring platform designed for educational institutions. The system enables multi-modal behavioral analysis, temporal risk scoring, and complete admin control over exam lifecycle. Target users: exam administrators, IT staff, and students. Core value: fraud prevention through AI-driven behavioral monitoring with explainable decisions.
+A production-grade, real-time AI-powered exam proctoring platform designed for educational institutions. The system enables multi-modal behavioral analysis, temporal risk scoring, and complete admin control over exam lifecycle. Target users: exam administrators, IT staff, and students. Core value: fraud prevention through AI-driven behavioral monitoring with intelligent automation and detailed event logging.
 
 ## 2. Page Structure
 - `/` - Home (Landing Page)

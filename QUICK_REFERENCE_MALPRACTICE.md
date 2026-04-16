@@ -95,8 +95,8 @@ Click Session #1 → View Details
 ```typescript
 // Location: frontend/src/pages/exam/monitoring/page.tsx
 
-// Phone threshold (sensitivity)
-PHONE_CONFIDENCE_THRESHOLD = 0.15  // 15% = very sensitive
+// Phone threshold (confidence score)
+PHONE_CONFIDENCE_THRESHOLD = 75  // Confidence score (0-100 scale)
 
 // Multiple faces
 FACE_THRESHOLD = 1  // Any faces > 1 triggers

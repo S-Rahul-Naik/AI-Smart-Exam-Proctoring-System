@@ -11,7 +11,7 @@ ExamMonitoringPage
   - Initializes when exam starts
   - Captures frame EVERY 500ms (2x per second)
   - Sends to /api/detect/phone
-  - 30% confidence threshold (catches partial phones)
+  - 75 confidence score threshold (catches clear phones only)
   - Requires only 2 consecutive frames
   - Triggers auto-submit on confirmation
   - Records event to /api/sessions/{id}/events

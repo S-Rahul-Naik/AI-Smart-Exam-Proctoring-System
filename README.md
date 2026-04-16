@@ -1,6 +1,6 @@
 # 🧠 AI Smart Exam Proctoring System
 
-> **Real-time AI-powered exam proctoring with multi-modal behavioral analysis, temporal risk scoring, and explainable alerts.**
+> **Real-time AI-powered exam proctoring with multi-modal behavioral analysis, temporal risk scoring, and intelligent alerts.**
 
 ![Proctoring](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)
@@ -91,9 +91,9 @@ npm run dev
 - ✅ **Gaze Tracking**: Eye direction (center/left/right/down)
 - ✅ **Phone Detection**: Mobile device usage (YOLOv8)
 - ✅ **Focus Lock**: Tab switches, window blur, fullscreen exit
-- ✅ **Temporal Analysis**: 30-sec sliding window
-- ✅ **Risk Scoring**: Weighted, time-decayed algorithm
-- ✅ **Explainable Alerts**: Evidence-based notifications
+- ✅ **Temporal Analysis**: 30-minute rolling window for behavioral tracking
+- ✅ **Risk Scoring**: Weighted accumulation algorithm with event-based decay
+- ✅ **Detailed Alerts**: Event-based notifications with risk breakdown
 
 ---
 
