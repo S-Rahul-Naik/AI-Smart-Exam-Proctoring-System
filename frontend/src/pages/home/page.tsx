@@ -19,8 +19,8 @@ const stats = [
 ];
 
 const steps = [
-  { num: '01', title: 'Face Verification Login', desc: 'Students authenticate with credentials and verify identity via webcam face check before accessing any exam.' },
-  { num: '02', title: 'Pre-Exam System Check', desc: 'Camera validation, lighting quality assessment, face positioning feedback, and multiple-face detection.' },
+  { num: '01', title: 'Credentials & Enrollment', desc: 'Students enter full name, student ID, email, and program before joining the exam.' },
+  { num: '02', title: 'Pre-Exam System Check', desc: 'Camera validation, lighting quality assessment, face positioning feedback, single-person detection, and identity verification via face matching.' },
   { num: '03', title: 'Rules & Consent', desc: 'Display exam rules, monitoring disclosure, and require explicit agreement before the exam begins.' },
   { num: '04', title: 'Focus Mode Exam', desc: 'Minimal UI with live webcam widget, status indicator, and real-time behavioral feedback toasts.' },
   { num: '05', title: 'AI Analysis & Risk Scoring', desc: 'Continuous temporal behavior analysis generates dynamic risk scores with detailed event logs.' },
