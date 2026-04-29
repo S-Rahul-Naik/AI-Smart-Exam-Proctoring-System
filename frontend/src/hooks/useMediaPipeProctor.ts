@@ -182,6 +182,7 @@ export function useMediaPipeProctor(videoRef: React.RefObject<HTMLVideoElement |
 
   useEffect(() => {
     isMountedRef.current = true;
+    let cancelled = false;
 
     async function init() {
       try {
@@ -190,9 +191,24 @@ export function useMediaPipeProctor(videoRef: React.RefObject<HTMLVideoElement |
           audio: false,
         });
 
+        if (cancelled) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+          const video = videoRef.current;
+          video.srcObject = stream;
+
+          // In React StrictMode dev, mount/unmount can interrupt play() with AbortError.
+          // Treat that as expected teardown noise rather than a hard initialization failure.
+          try {
+            await video.play();
+          } catch (playErr: any) {
+            if (!(cancelled || playErr?.name === 'AbortError')) {
+              throw playErr;
+            }
+          }
         }
 
         // Suppress console warnings during MediaPipe/WASM initialization
@@ -242,6 +258,7 @@ export function useMediaPipeProctor(videoRef: React.RefObject<HTMLVideoElement |
     init();
 
     return () => {
+      cancelled = true;
       isMountedRef.current = false;
       cancelAnimationFrame(animFrameRef.current);
       const video = videoRef.current;

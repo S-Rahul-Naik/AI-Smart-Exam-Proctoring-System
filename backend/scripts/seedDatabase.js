@@ -47,6 +47,7 @@ async function seedDatabase() {
     console.log('👥 Creating test students...');
     const studentsToCreate = testStudents.map(student => ({
       ...student,
+      usn: student.studentId,
       password: bcrypt.hashSync(student.password, 10), // Hash the password
     }));
     const createdStudents = await Student.insertMany(studentsToCreate);
